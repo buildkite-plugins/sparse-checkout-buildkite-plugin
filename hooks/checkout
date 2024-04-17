@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -euo pipefail
+
+DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
+
+# shellcheck source=lib/plugin.bash
+. "$DIR/../lib/plugin.bash"
+
+CHECKOUT_PATHS=$(plugin_read_list PATHS "")
+
+if [ -z "${CHECKOUT_PATHS}" ]; then
+  echo 'Missing `paths` option in the plugin'
+  exit 1
+fi
+
+echo "Creating sparse-checkout with paths: ${CHECKOUT_PATHS}"
+
+# clone the repo without checking out files if it does not exist already
+if [! -d .git ]; then
+    git clone -v --depth 1 --no-checkout ${BUILDKITE_REPO} .
+fi
+
+git clean -ffxdq
+# fetch branch if commit is HEAD
+if [ "${BUILDKITE_COMMIT}" -eq "HEAD" ]; then
+    git fetch origin ${BUILDKITE_BRANCH}
+    git checkout FETCH_HEAD
+else
+    git fetch origin ${BUILDKITE_COMMIT}
+    git checkout ${BUILDKITE_COMMIT}
+fi
+
+git sparse-checkout init
+git sparse-checkout add ${CHECKOUT_PATHS}
+git checkout
