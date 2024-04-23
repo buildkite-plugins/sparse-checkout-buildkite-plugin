@@ -1,8 +1,10 @@
 # Sparse Checkout Buildkite Plugin
 
-A Buildkite plugin for creating a sparse checkout of a repository.
+A [Buildkite plugin](https://buildkite.com/docs/agent/v3/plugins) for creating a sparse checkout of a repository.
 
-## Options
+This is useful for pipeline upload steps that dont need to access files outside the .buildkite directory. if your repository is large, this plugin will speed up your pipelines by only pulling the files relevant to the step
+
+## Configuration
 
 These are all the options available to configure this plugin's behaviour.
 
@@ -20,7 +22,7 @@ Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are consi
 
 ## Examples
 
-Show how your plugin is to be used
+Plugin usage examples
 
 ```yaml
 steps:
