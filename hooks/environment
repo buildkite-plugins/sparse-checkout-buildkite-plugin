@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+# suffix the checkout path to ensure this plugin makes use of a unique directory
+# this is so any subsequent builds for this pipeline (in the default directory) on the same agent are not messed up by the sparse checkout logic
+export BUILDKITE_BUILD_CHECKOUT_PATH=${BUILDKITE_BUILD_CHECKOUT_PATH}-sparse
