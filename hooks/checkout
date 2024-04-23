@@ -7,30 +7,45 @@ DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 # shellcheck source=lib/plugin.bash
 . "$DIR/../lib/plugin.bash"
 
-CHECKOUT_PATHS=$(plugin_read_config PATHS "")
+NO_CONE_OPTION="$(plugin_read_config NO_CONE "false")"
+NO_CONE_PARAM=""
+[[ $NO_CONE_OPTION = false ]] || NO_CONE_PARAM="--no-cone"
 
-if [ -z "${CHECKOUT_PATHS}" ]; then
-  echo 'Missing `paths` option in the plugin'
-  exit 1
+if plugin_read_list_into_result PATHS; then
+    CHECKOUT_PATHS=("${result[@]}")
+else
+    echo "Missing 'paths' option in the plugin"
+    exit 1
 fi
 
-echo "Creating sparse-checkout with paths: ${CHECKOUT_PATHS}"
+echo "Scanning SSH keys for remote git repository"
+[[ -d ~/.ssh ]] || mkdir -p ~/.ssh
+ssh-keyscan "${BUILDKITE_REPO_SSH_HOST}" >> ~/.ssh/known_hosts
+
+echo "Creating sparse-checkout with paths: ${CHECKOUT_PATHS[*]}"
 
 # clone the repo without checking out files if it does not exist already
-if [ ! -d .git ]; then
-    git clone -v --depth 1 --no-checkout ${BUILDKITE_REPO} .
+if [[ ! -d .git ]]; then
+    git clone \
+        --depth 1 \
+        --filter=blob:none \
+        --no-checkout \
+        ${BUILDKITE_REPO_MIRROR:+--reference "$BUILDKITE_REPO_MIRROR"} \
+        -v \
+        "${BUILDKITE_REPO}" .
 fi
 
 git clean -ffxdq
 # fetch branch if commit is HEAD
-if [ "${BUILDKITE_COMMIT}" = "HEAD" ]; then
-    git fetch origin ${BUILDKITE_BRANCH}
-    git checkout FETCH_HEAD
+if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+    git fetch --depth 1 origin "${BUILDKITE_BRANCH}"
 else
-    git fetch origin ${BUILDKITE_COMMIT}
-    git checkout ${BUILDKITE_COMMIT}
+    git fetch --depth 1 origin "${BUILDKITE_COMMIT}"
 fi
 
-git sparse-checkout init
-git sparse-checkout add ${CHECKOUT_PATHS}
-git checkout
+git sparse-checkout set ${NO_CONE_PARAM:+--no-cone} "${CHECKOUT_PATHS[@]}"
+if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+   git checkout FETCH_HEAD
+else
+   git checkout "${BUILDKITE_COMMIT}"
+fi

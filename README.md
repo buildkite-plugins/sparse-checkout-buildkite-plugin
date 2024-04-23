@@ -10,7 +10,13 @@ These are all the options available to configure this plugin's behaviour.
 
 #### `paths` (list of string)
 
-Paths accepted by `git sparse-checkout add`.
+Paths accepted by `git sparse-checkout set`.
+
+### Optional
+
+#### `no_cone` ('true' or 'false')
+
+Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are considered to by a list of patterns.
 
 ## Examples
 
@@ -24,6 +30,18 @@ steps:
       - sparse-checkout:
           paths:
             - .buildkite
+```
+
+```yaml
+steps:
+  - label: "Pipeline upload"
+    command: "buildkite-agent pipeline upload"
+    plugins:
+      - sparse-checkout:
+          no_cone: true
+          paths:
+            - .buildkite
+            - helm*
 ```
 
 ## ⚒ Developing
