@@ -7,6 +7,10 @@ DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 # shellcheck source=lib/plugin.bash
 . "$DIR/../lib/plugin.bash"
 
+NO_CONE_OPTION="$(plugin_read_config NO_CONE "false")"
+NO_CONE_PARAM=""
+[[ $NO_CONE_OPTION = false ]] || NO_CONE_PARAM="--no-cone"
+
 if plugin_read_list_into_result PATHS; then
     CHECKOUT_PATHS=("${result[@]}")
 else
@@ -39,5 +43,9 @@ else
     git fetch --depth 1 origin "${BUILDKITE_COMMIT}"
 fi
 
-git sparse-checkout set --no-cone "${CHECKOUT_PATHS[@]}"
-git checkout
+git sparse-checkout set ${NO_CONE_PARAM:+--no-cone} "${CHECKOUT_PATHS[@]}"
+if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+   git checkout FETCH_HEAD
+else
+   git checkout "${BUILDKITE_COMMIT}"
+fi
