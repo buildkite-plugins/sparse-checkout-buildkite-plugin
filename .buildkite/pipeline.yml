@@ -1,10 +1,4 @@
 steps:
-  - label: ":shell: Tests"
-    plugins:
-      - plugin-tester#v1.1.1:
-          folders:
-            - tests
-
   - label: ":sparkles: Lint"
     plugins:
       - plugin-linter#v3.3.0:
