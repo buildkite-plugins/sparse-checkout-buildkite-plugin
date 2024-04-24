@@ -34,18 +34,6 @@ steps:
             - .buildkite
 ```
 
-```yaml
-steps:
-  - label: "Pipeline upload"
-    command: "buildkite-agent pipeline upload"
-    plugins:
-      - sparse-checkout#v1.0.0:
-          no_cone: true
-          paths:
-            - .buildkite
-            - helm*
-```
-
 ## ⚒ Developing
 
 To run testing, shellchecks and plugin linting use `bk run` with the [Buildkite CLI](https://github.com/buildkite/cli).
