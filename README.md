@@ -22,7 +22,7 @@ Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are consi
 
 ## Example
 
-Plugin usage examples
+Below are few examples on using sparse-checkout plugin.
 
 ```yaml
 steps:
@@ -53,13 +53,6 @@ To run testing, shellchecks and plugin linting use use `bk run` with the [Buildk
 ```bash
 bk run
 ```
-
-Or if you want to run just the tests, you can use the docker [Plugin Tester](https://github.com/buildkite-plugins/buildkite-plugin-tester):
-
-```bash
-docker run --rm -ti -v "${PWD}":/plugin buildkite/plugin-tester:latest
-```
-
 ## 👩‍💻 Contributing
 
 Your policy on how to contribute to the plugin!
