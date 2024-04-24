@@ -2,7 +2,7 @@ steps:
   - label: ":sparkles: Lint"
     plugins:
       - plugin-linter#v3.3.0:
-          id: template
+          id: sparse-checkout
 
   - label: ":shell: Shellcheck"
     plugins:

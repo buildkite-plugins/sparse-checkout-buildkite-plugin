@@ -20,7 +20,7 @@ Paths accepted by `git sparse-checkout set`.
 
 Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are considered to by a list of patterns.
 
-## Examples
+## Example
 
 Plugin usage examples
 
