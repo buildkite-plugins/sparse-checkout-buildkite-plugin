@@ -1,4 +1,4 @@
-# Sparse Checkout Buildkite Plugin
+# Sparse Checkout Buildkite Plugin [![Build status](https://badge.buildkite.com/f846f6eca370c461286ba3de8e7def04b16e00cd1b85b58b23.svg)](https://buildkite.com/buildkite/plugins-sparse-checkout)
 
 A [Buildkite plugin](https://buildkite.com/docs/agent/v3/plugins) for creating a sparse checkout of a repository.
 
