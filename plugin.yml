@@ -1,14 +1,15 @@
-name: Buildkite Plugin
-description: Exceptional functionality
+name: Sparse checkout
+description: Plugin to run sparse checkout only on selected folders
 author: https://github.com/buildkite-plugins
 requirements:
   - bash
 configuration:
   properties:
-    mandatory:
-      type: string
-    optional:
-      type: string
+    paths:
+      type: [string, array]
+    no_cone:
+      type: boolean
+      default: false
   required:
-    - mandatory
+    - paths
   additionalProperties: false
