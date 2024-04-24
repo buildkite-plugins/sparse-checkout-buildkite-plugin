@@ -1,5 +1,5 @@
 name: Sparse checkout
-description: Plugin to run sparse checkout only selected folders
+description: Plugin to run sparse checkout only on selected folders
 author: https://github.com/buildkite-plugins
 requirements:
   - bash
