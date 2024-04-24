@@ -29,7 +29,7 @@ steps:
   - label: "Pipeline upload"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout:
+      - sparse-checkout#v1.0.0:
           paths:
             - .buildkite
 ```
@@ -39,7 +39,7 @@ steps:
   - label: "Pipeline upload"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout:
+      - sparse-checkout#v1.0.0:
           no_cone: true
           paths:
             - .buildkite

@@ -1,4 +1,4 @@
-name: Sparse-checkout
+name: Sparse checkout
 description: Plugin to run sparse checkout only selected folders
 author: https://github.com/buildkite-plugins
 requirements:
@@ -12,3 +12,4 @@ configuration:
       default: false
   required:
     - paths
+  additionalProperties: false
