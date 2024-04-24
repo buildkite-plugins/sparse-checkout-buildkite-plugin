@@ -2,7 +2,7 @@
 
 A [Buildkite plugin](https://buildkite.com/docs/agent/v3/plugins) for creating a sparse checkout of a repository.
 
-This is useful for pipeline upload steps that dont need to access files outside the .buildkite directory. if your repository is large, this plugin will speed up your pipelines by only pulling the files relevant to the step
+This is useful for pipeline upload steps that dont need to access files outside the .buildkite directory. If your repository is large, this plugin will speed up your pipelines by only pulling the files relevant to the step.
 
 ## Configuration
 
