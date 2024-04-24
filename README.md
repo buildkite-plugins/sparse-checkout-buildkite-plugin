@@ -22,7 +22,7 @@ Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are consi
 
 ## Example
 
-Below are few examples on using sparse-checkout plugin.
+Below is an example for using sparse-checkout plugin.
 
 ```yaml
 steps:
