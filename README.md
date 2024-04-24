@@ -18,7 +18,7 @@ Paths accepted by `git sparse-checkout set`.
 
 #### `no_cone` ('true' or 'false')
 
-Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are considered to by a list of patterns.
+Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are considered to be a list of patterns.
 
 ## Example
 
