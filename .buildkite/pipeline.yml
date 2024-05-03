@@ -3,6 +3,12 @@ steps:
     plugins:
       - plugin-linter#v3.3.0:
           id: sparse-checkout
+  
+  - label: ":shell: Tests"
+    plugins:
+      - plugin-tester#v1.1.1:
+          folders:
+            - tests
 
   - label: ":shell: Shellcheck"
     plugins:
