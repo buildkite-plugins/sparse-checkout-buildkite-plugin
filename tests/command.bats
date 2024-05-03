@@ -19,3 +19,18 @@ setup() {
   assert_output --partial 'Missing mandatory option'
   refute_output --partial 'Running plugin'
 }
+
+@test "Normal basic operations" {
+  unset BUILDKITE_PLUGIN_PLUGIN_TESTER_VERSION
+
+
+
+  run "$PWD"/hooks/command
+
+  assert_success
+  assert_output --partial 'docker ran with'
+  assert_output --partial " -v $PWD:/plugin "
+  assert_output --partial " buildkite/plugin-tester:${LATEST_VERSION} bats tests"
+
+
+}
