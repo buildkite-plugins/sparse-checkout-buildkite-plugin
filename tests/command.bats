@@ -8,7 +8,7 @@ setup() {
 
   # you can set variables common to all tests here
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_MANDATORY='Value'
-  export path='Value
+  export paths='Value'
 }
 
 @test "Build without a repository" {
