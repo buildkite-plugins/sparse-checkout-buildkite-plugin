@@ -1,14 +1,13 @@
 #!/usr/bin/env bats
 
-setup() {
-  load "${BATS_PLUGIN_PATH}/load.bash"
+load "${BATS_PLUGIN_PATH}/load.bash"
 
-  # Uncomment to enable stub debugging
-  # export CURL_STUB_DEBUG=/dev/tty
+# Uncomment to enable stub debug output:
+# export BUILDKITE_AGENT_STUB_DEBUG=/dev/tty
 
-  # you can set variables common to all tests here
+# you can set variables common to all tests here
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PLUGIN_MANDATORY='Value'
-}
+
 
 @test "Missing mandatory option fails" {
   unset BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PLUGIN_MANDATORY
