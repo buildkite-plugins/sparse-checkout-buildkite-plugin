@@ -6,11 +6,11 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 # export BUILDKITE_AGENT_STUB_DEBUG=/dev/tty
 
 # you can set variables common to all tests here
-  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PLUGIN_MANDATORY='Value'
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PLUGIN_PATHS='Value'
 
 
 @test "Missing mandatory option fails" {
-  unset BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PLUGIN_MANDATORY
+  unset BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PLUGIN_PATHS
 
   run "$PWD"/hooks/checkout
 
@@ -29,7 +29,7 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 }
 
 @test "Optional value changes behaviour" {
-  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PLUGIN_MANDATORY='other value'
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PLUGIN_PATHS='other value'
 
   run "$PWD"/hooks/checkout
 
