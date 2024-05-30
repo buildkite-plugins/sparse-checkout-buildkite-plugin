@@ -13,6 +13,7 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 
 @test "Test mandatory option fails" {
   set BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
+  set BUILDKITE_REPO_SSH_HOST='Value'
 
   run "$PWD"/hooks/checkout
 
