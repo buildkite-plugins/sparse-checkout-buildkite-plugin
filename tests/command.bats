@@ -9,6 +9,19 @@ load "${BATS_PLUGIN_PATH}/load.bash"
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
 
 
+
+
+@test "Test mandatory option fails" {
+  set BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial ' mandatory option given'
+  refute_output --partial 'Running plugin'
+}
+
+
 @test "Missing mandatory option fails" {
   unset BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS
 
