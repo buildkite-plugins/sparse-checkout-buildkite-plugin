@@ -8,14 +8,11 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 # you can set variables common to all tests here
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   export BUILDKITE_REPO_SSH_HOST='Value'
-
+  export SSH='Value'
 
 
 
 @test "Test mandatory option fails" {
-  set BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
-  set BUILDKITE_REPO_SSH_HOST='Value'
-  set SSH='ssh'
   stub ssh-keyscan BUILDKITE_REPO_SSH_HOST >> ~/.SSH
 
 
