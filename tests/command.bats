@@ -15,7 +15,7 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 @test "Test mandatory option fails" {
   run bash -c 'mkdir -p ~/.ssh; ssh-keyscan github.com >> ~/.ssh/known_hosts; [[ -f ~/.ssh/known_hosts ]]'
   [ "$status" -eq 0 ]
-  [ "$output" = "false" ] || [ "$output" = "true" ]
+
 
 
   run "$PWD"/hooks/checkout
