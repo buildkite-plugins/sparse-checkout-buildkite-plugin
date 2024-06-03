@@ -32,7 +32,21 @@ teardown() {
   rm -f "$TEST_KNOWN_HOSTS"
 }
 
+# Function to mock ssh-keyscan if it's not available
+mock_ssh_keyscan() {
+  if ! command -v ssh-keyscan &> /dev/null; then
+    cat <<'EOF' > /tmp/ssh-keyscan
+#!/bin/bash
+echo "# SSH-2.0-mock_ssh_keyscan"
+EOF
+    chmod +x /tmp/ssh-keyscan
+    export PATH="/tmp:$PATH"
+  fi
+}
+
 @test "Test mandatory option success" {
+  mock_ssh_keyscan
+  
   run ssh-keyscan "$BUILDKITE_REPO_SSH_HOST" >> "$SSH_KNOWN_HOSTS"
   assert_success
   [ -f "$SSH_KNOWN_HOSTS" ]
