@@ -12,22 +12,18 @@ export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   unset $BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS
   export BUILDKITE_REPO_SSH_HOST='value'
   export SSH_KNOWN_HOSTS='value'
+  export BUILDKITE_REPO_MIRROR='value'
+  export BUILDKITE_REPO='value'
 
   stub ssh-keyscan \
     "[[ -d ~/.ssh ]] || mkdir -p ~/.ssh" \
     "$BUILDKITE_REPO_SSH_HOST" >> "$SSH_KNOWN_HOSTS"
   
   stub git \
-
-    "git clone \
-        --depth 1 \
-        --filter=blob:none \
-        --no-checkout \
+    "git clone --depth 1  --filter=blob:none --no-checkout \
         ${BUILDKITE_REPO_MIRROR:+--reference "$BUILDKITE_REPO_MIRROR"} \
         -v \
         "${BUILDKITE_REPO}" ."
-
-
 
   run "$PWD"/hooks/checkout
 
