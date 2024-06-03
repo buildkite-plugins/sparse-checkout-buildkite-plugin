@@ -12,17 +12,14 @@ export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   unset $BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS
   export BUILDKITE_REPO_SSH_HOST='value'
   export SSH_KNOWN_HOSTS='value'
-  
+  [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
   stub ssh-keyscan \
     "$BUILDKITE_REPO_SSH_HOST" >> "$SSH_KNOWN_HOSTS"
-  assert_success
-  [ -f "$SSH_KNOWN_HOSTS" ]
-  assert_output --partial "SSh keyscan"
-
 
   run "$PWD"/hooks/checkout
 
   assert_failure
   assert_output --partial 'Missing mandatory option'
   refute_output --partial 'Running plugin'
+  unstub ssh-keyscan 
 }
