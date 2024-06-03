@@ -12,17 +12,18 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 
 
 
-@test "Test mandatory option fails" {
-  run bash -c 'mkdir -p ~/.ssh; ssh-keyscan github.com >> ~/.ssh/known_hosts; [[ -f ~/.ssh/known_hosts ]]'
-  [ "$status" -eq 0 ]
+@test "Test mandatory option success" {
 
 
-
+  stub ssh \
+    "mkdir -p ~/.ssh; ssh-keyscan github.com >> ~/.ssh/known_hosts; [[ -f ~/.ssh/known_hosts ]]"
   run "$PWD"/hooks/checkout
 
   assert_success
   assert_output --partial ' mandatory option given'
   refute_output --partial 'Running plugin'
+
+  unstub ssh
 }
 
 
