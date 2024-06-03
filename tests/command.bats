@@ -12,8 +12,9 @@ export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   unset $BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS
   export BUILDKITE_REPO_SSH_HOST='value'
   export SSH_KNOWN_HOSTS='value'
-  [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
+
   stub ssh-keyscan \
+    "[[ -d ~/.ssh ]] || mkdir -p ~/.ssh" \
     "$BUILDKITE_REPO_SSH_HOST" >> "$SSH_KNOWN_HOSTS"
 
   run "$PWD"/hooks/checkout
