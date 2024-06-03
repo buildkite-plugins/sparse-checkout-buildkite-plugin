@@ -8,14 +8,11 @@ export BUILDKITE_AGENT_STUB_DEBUG=/dev/tty
 # you can set variables common to all tests here
 export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   
-
-  
-
 @test "Test mandatory option success" {
 
   export SSH_KNOWN_HOSTS="TEST_KNOWN_HOSTS"
   export BUILDKITE_REPO_SSH_HOST='Value'
-  run ssh-keyscan $BUILDKITE_REPO_SSH_HOST >> $SSH_KNOWN_HOSTS; [[ -f $SSH_KNOWN_HOSTS]]"
+  run ssh-keyscan "$BUILDKITE_REPO_SSH_HOST" >> $SSH_KNOWN_HOSTS; [[ -f $SSH_KNOWN_HOSTS]]
   run "$PWD"/hooks/checkout
 
   assert_success
@@ -26,7 +23,7 @@ export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
 
 
 @test "Missing mandatory option fails" {
-  unset BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS
+  unset $BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS
 
   run "$PWD"/hooks/checkout
 
