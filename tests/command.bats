@@ -8,10 +8,6 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 # you can set variables common to all tests here
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   export BUILDKITE_REPO_SSH_HOST='Value'
-  export SSH='Value'
-
-
-  
 
 @test "Test mandatory option success" {
 
@@ -23,7 +19,6 @@ load "${BATS_PLUGIN_PATH}/load.bash"
   assert_output --partial ' mandatory option given'
   refute_output --partial 'Running plugin'
 
-  unstub ssh
 }
 
 
