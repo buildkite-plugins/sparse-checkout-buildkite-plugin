@@ -2,27 +2,50 @@
 
 load "${BATS_PLUGIN_PATH}/load.bash"
 
-#Uncomment to enable stub debug output:
-#export BUILDKITE_AGENT_STUB_DEBUG='/dev/tty'
+# Uncomment to enable stub debug output:
+# export BUILDKITE_AGENT_STUB_DEBUG='/dev/tty'
 
-# you can set variables common to all tests here
+# Set variables common to all tests here
 export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
 
-@test "Test mandatory option success" {
-  export SSH_KNOWN_HOSTS="TEST_KNOWN_HOSTS"
+setup() {
+  export ORIGINAL_KNOWN_HOSTS=~/.ssh/known_hosts
+  export TEST_KNOWN_HOSTS=$(mktemp)
   export BUILDKITE_REPO_SSH_HOST='Value'
-  run ssh-keyscan "$BUILDKITE_REPO_SSH_HOST" >> $SSH_KNOWN_HOSTS; [[ -f $SSH_KNOWN_HOSTS]]
+
+  # Backup the original known_hosts file
+  if [ -f "$ORIGINAL_KNOWN_HOSTS" ]; then
+    cp "$ORIGINAL_KNOWN_HOSTS" "$ORIGINAL_KNOWN_HOSTS.bak"
+  fi
+
+  # Point to the temporary known_hosts file
+  export SSH_KNOWN_HOSTS="$TEST_KNOWN_HOSTS"
+}
+
+teardown() {
+  # Restore the original known_hosts file
+  if [ -f "$ORIGINAL_KNOWN_HOSTS.bak" ]; then
+    mv "$ORIGINAL_KNOWN_HOSTS.bak" "$ORIGINAL_KNOWN_HOSTS"
+  fi
+
+  # Remove the temporary known_hosts file
+  rm -f "$TEST_KNOWN_HOSTS"
+}
+
+@test "Test mandatory option success" {
+  run ssh-keyscan "$BUILDKITE_REPO_SSH_HOST" >> "$SSH_KNOWN_HOSTS"
+  assert_success
+  [ -f "$SSH_KNOWN_HOSTS" ]
+
   run "$PWD"/hooks/checkout
 
   assert_success
-  assert_output --partial ' mandatory option given'
+  assert_output --partial 'mandatory option given'
   refute_output --partial 'Running plugin'
-
 }
 
-
 @test "Missing mandatory option fails" {
-  unset $BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS
+  unset BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS
 
   run "$PWD"/hooks/checkout
 
