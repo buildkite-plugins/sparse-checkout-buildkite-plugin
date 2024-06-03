@@ -9,7 +9,7 @@ load "${BATS_PLUGIN_PATH}/load.bash"
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   export BUILDKITE_REPO_SSH_HOST='Value'
   export SSH='Value'
-  export TEST_KNOWN_HOSTS=$(mktemp)
+
 
   
 
