@@ -16,8 +16,7 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 @test "Test mandatory option success" {
 
   export SSH_KNOWN_HOSTS="TEST_KNOWN_HOSTS"
-  stub ssh \
-    "mkdir -p ~/.ssh; ssh-keyscan $BUILDKITE_REPO_SSH_HOST >> $SSH_KNOWN_HOSTS; [[ -f $SSH_KNOWN_HOSTS]]"
+  run ssh-keyscan $BUILDKITE_REPO_SSH_HOST >> $SSH_KNOWN_HOSTS; [[ -f $SSH_KNOWN_HOSTS]]"
   run "$PWD"/hooks/checkout
 
   assert_success
