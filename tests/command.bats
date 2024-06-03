@@ -17,6 +17,7 @@ export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
     "$BUILDKITE_REPO_SSH_HOST" >> "$SSH_KNOWN_HOSTS"
   assert_success
   [ -f "$SSH_KNOWN_HOSTS" ]
+  assert_output --partial "SSh keyscan"
 
 
   run "$PWD"/hooks/checkout
