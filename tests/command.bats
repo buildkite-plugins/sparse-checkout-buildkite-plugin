@@ -9,14 +9,15 @@ load "${BATS_PLUGIN_PATH}/load.bash"
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   export BUILDKITE_REPO_SSH_HOST='Value'
   export SSH='Value'
+  export TEST_KNOWN_HOSTS=$(mktemp)
 
-
+  
 
 @test "Test mandatory option success" {
 
-
+  export SSH_KNOWN_HOSTS="TEST_KNOWN_HOSTS"
   stub ssh \
-    "mkdir -p ~/.ssh; ssh-keyscan github.com >> ~/.ssh/known_hosts; [[ -f ~/.ssh/known_hosts ]]"
+    "mkdir -p ~/.ssh; ssh-keyscan $BUILDKITE_REPO_SSH_HOST >> $SSH_KNOWN_HOSTS; [[ -f $SSH_KNOWN_HOSTS]]"
   run "$PWD"/hooks/checkout
 
   assert_success
