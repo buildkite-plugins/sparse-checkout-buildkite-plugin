@@ -16,6 +16,18 @@ export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   stub ssh-keyscan \
     "[[ -d ~/.ssh ]] || mkdir -p ~/.ssh" \
     "$BUILDKITE_REPO_SSH_HOST" >> "$SSH_KNOWN_HOSTS"
+  
+  stub git \
+
+    "git clone \
+        --depth 1 \
+        --filter=blob:none \
+        --no-checkout \
+        ${BUILDKITE_REPO_MIRROR:+--reference "$BUILDKITE_REPO_MIRROR"} \
+        -v \
+        "${BUILDKITE_REPO}" ."
+
+
 
   run "$PWD"/hooks/checkout
 
@@ -23,4 +35,5 @@ export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
   assert_output --partial 'Missing mandatory option'
   refute_output --partial 'Running plugin'
   unstub ssh-keyscan 
+  unstub git
 }
