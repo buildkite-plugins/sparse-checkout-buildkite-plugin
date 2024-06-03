@@ -6,7 +6,10 @@ load "${BATS_PLUGIN_PATH}/load.bash"
 export BUILDKITE_AGENT_STUB_DEBUG=/dev/tty
 
 # you can set variables common to all tests here
-export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
+setup{
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_PATHS='Value'
+}
+
   
 @test "Test mandatory option success" {
 
