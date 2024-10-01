@@ -20,6 +20,10 @@ Paths accepted by `git sparse-checkout set`.
 
 Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are considered to be a list of patterns.
 
+#### `skip_ssh_keyscan` ('true' or 'false')
+
+Whether to skip ssh-keyscan step. This will skip adding each ssh public key into the known-hosts file. Only use if ssh keys are already setup.
+
 ## Example
 
 Below is an example for using sparse-checkout plugin.
