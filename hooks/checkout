@@ -19,14 +19,13 @@ else
 fi
 
 SKIP_SSH_KEYSCAN_OPTION="$(plugin_read_config SKIP_SSH_KEYSCAN "false")"
-echo "SKIP_SSH_KEYSCAN_OPTION: $SKIP_SSH_KEYSCAN_OPTION"
 
 if [ "$SKIP_SSH_KEYSCAN_OPTION" = "false" ]; then
     echo "Scanning SSH keys for remote git repository"
     [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
     ssh-keyscan "${BUILDKITE_REPO_SSH_HOST}" >> ~/.ssh/known_hosts
 else
-    echo "Skipping SSH keyscan"
+    echo "Skiped SSH keyscan"
 fi
 
 echo "Creating sparse-checkout with paths: ${CHECKOUT_PATHS[*]}"
