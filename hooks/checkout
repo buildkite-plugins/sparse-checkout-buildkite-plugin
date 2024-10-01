@@ -11,6 +11,8 @@ NO_CONE_OPTION="$(plugin_read_config NO_CONE "false")"
 NO_CONE_PARAM=""
 [[ $NO_CONE_OPTION = false ]] || NO_CONE_PARAM="--no-cone"
 
+SKIP_SSH_KEYSCAN_OPTION="$(plugin_read_config SKIP_SSH_KEYSCAN "false")"
+
 if plugin_read_list_into_result PATHS; then
     CHECKOUT_PATHS=("${result[@]}")
 else
@@ -18,9 +20,11 @@ else
     exit 1
 fi
 
-echo "Scanning SSH keys for remote git repository"
-[[ -d ~/.ssh ]] || mkdir -p ~/.ssh
-ssh-keyscan "${BUILDKITE_REPO_SSH_HOST}" >> ~/.ssh/known_hosts
+if [[ "$SKIP_SSH_KEYSCAN_OPTION" != "false" ]]; then
+    echo "Scanning SSH keys for remote git repository"
+    [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
+    ssh-keyscan "${BUILDKITE_REPO_SSH_HOST}" >> ~/.ssh/known_hosts
+fi
 
 echo "Creating sparse-checkout with paths: ${CHECKOUT_PATHS[*]}"
 
