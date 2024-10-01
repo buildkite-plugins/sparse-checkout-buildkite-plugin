@@ -10,6 +10,9 @@ configuration:
     no_cone:
       type: boolean
       default: false
+    skip_ssh_keyscan:
+      type: boolean
+      default: false
   required:
     - paths
   additionalProperties: false
