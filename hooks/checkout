@@ -20,7 +20,7 @@ fi
 
 SKIP_SSH_KEYSCAN_OPTION="$(plugin_read_config SKIP_SSH_KEYSCAN "false")"
 
-if [ "$SKIP_SSH_KEYSCAN_OPTION" = "false" ]; then
+if [[ -n "${BUILDKITE_REPO_SSH_HOST:-}" ]] && [[ "${SKIP_SSH_KEYSCAN_OPTION}" = "false" ]] ; then
     echo "Scanning SSH keys for remote git repository"
     [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
     ssh-keyscan "${BUILDKITE_REPO_SSH_HOST}" >> ~/.ssh/known_hosts
