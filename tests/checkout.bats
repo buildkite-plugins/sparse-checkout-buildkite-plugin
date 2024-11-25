@@ -13,7 +13,7 @@ setup() {
 }
 
 @test "Skip ssh-keyscan when option provided" {
-  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_SKIP_SSH_KEYSCAN='true'
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_SKIP_SSH_KEYSCAN="true"
 
   stub git "clean \* : echo 'git clean'"
   stub git "fetch --depth 1 origin \* : echo 'git fetch'"
@@ -44,4 +44,39 @@ setup() {
   
   unstub git
   unstub ssh-keyscan
+}
+
+@test "Run ssh-keyscan when BUILDKITE_REPO_SSH_HOST is defined" {
+  unset BUILDKITE_PLUGIN_SPARSE_CHECKOUT_SKIP_SSH_KEYSCAN
+  export BUILDKITE_REPO_SSH_HOST="github.com"
+
+  stub ssh-keyscan "\* : echo 'keyscan'"
+  stub git "clean \* : echo 'git clean'"
+  stub git "fetch --depth 1 origin \* : echo 'git fetch'"
+  stub git "sparse-checkout set \* \* : echo 'git sparse-checkout'"
+  stub git "checkout \* : echo 'checkout'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Scanning SSH keys for remote git repository'
+
+  unstub git
+  unstub ssh-keyscan
+}
+
+@test "Skip ssh-keyscan when BUILDKITE_REPO_SSH_HOST is unset" {
+  unset BUILDKITE_REPO_SSH_HOST
+
+  stub git "clean \* : echo 'git clean'"
+  stub git "fetch --depth 1 origin \* : echo 'git fetch'"
+  stub git "sparse-checkout set \* \* : echo 'git sparse-checkout'"
+  stub git "checkout \* : echo 'checkout'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Skipped SSH keyscan'
+
+  unstub git
 }
