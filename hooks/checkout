@@ -43,13 +43,21 @@ fi
 
 git clean -ffxdq
 
-# fetch branch if commit is HEAD, respecting BUILDKITE_GIT_FETCH_FLAGS if set
-FETCH_FLAGS="${BUILDKITE_GIT_FETCH_FLAGS:-}"
-if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
-    git fetch --depth 1 "${FETCH_FLAGS}" origin "${BUILDKITE_BRANCH}"
-else
-    git fetch --depth 1 "${FETCH_FLAGS}" origin "${BUILDKITE_COMMIT}"
+FETCH_FLAGS=()
+if [[ -n "${BUILDKITE_GIT_FETCH_FLAGS:-}" ]]; then
+    # Use read -a to split the flags safely and shellcheck-compliantly
+    read -r -a FETCH_FLAGS <<< "${BUILDKITE_GIT_FETCH_FLAGS}"
 fi
+
+FETCH_FLAGS+=(--depth 1 origin)
+
+if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+    FETCH_FLAGS+=( "${BUILDKITE_BRANCH}" )
+else
+    FETCH_FLAGS+=( "${BUILDKITE_COMMIT}" )
+fi
+
+git fetch "${FETCH_FLAGS[@]}"
 
 git sparse-checkout set ${NO_CONE_PARAM:+--no-cone} "${CHECKOUT_PATHS[@]}"
 if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
