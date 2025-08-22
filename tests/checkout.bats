@@ -80,3 +80,23 @@ setup() {
 
   unstub git
 }
+
+@test "Respects BUILDKITE_GIT_FETCH_FLAGS in git fetch" {
+  export BUILDKITE_GIT_FETCH_FLAGS="--prune --verbose"
+  export BUILDKITE_COMMIT="HEAD"
+  export BUILDKITE_BRANCH="main"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean * : echo 'git clean'"
+  stub git "fetch --prune --verbose --depth 1 origin * : echo 'git fetch with flags'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout * : echo 'checkout'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'git fetch with flags'
+
+  unstub ssh-keyscan
+  unstub git
+}
