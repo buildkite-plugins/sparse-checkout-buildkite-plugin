@@ -88,7 +88,7 @@ setup() {
 
   stub ssh-keyscan "* : echo 'keyscan'"
   stub git "clean * : echo 'git clean'"
-  stub git "fetch --depth 1 --prune --verbose origin * : echo 'git fetch with flags'"
+  stub git "fetch --prune --verbose --depth 1 origin * : echo 'git fetch with flags'"
   stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
   stub git "checkout * : echo 'checkout'"
 
