@@ -85,6 +85,8 @@ setup() {
   export BUILDKITE_GIT_FETCH_FLAGS="--prune --verbose"
   export BUILDKITE_COMMIT="HEAD"
   export BUILDKITE_BRANCH="main"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
   stub git "clean * : echo 'git clean'"
   stub git "fetch --depth 1 --prune --verbose origin * : echo 'git fetch with flags'"
   stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
@@ -95,5 +97,6 @@ setup() {
   assert_success
   assert_output --partial 'git fetch with flags'
 
+  unstub ssh-keyscan
   unstub git
 }
