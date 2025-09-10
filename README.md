@@ -24,6 +24,10 @@ Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are consi
 
 Whether to skip ssh-keyscan step. This will skip adding each ssh public key into the known-hosts file. Only use if ssh keys are already setup.
 
+#### `clean_checkout` ('true' or 'false')
+
+Whether to perform aggressive repository cleanup before checkout. This option handles scenarios where interrupted or cancelled jobs leave the git repository in a corrupted state with uncommitted changes that would prevent checkout. When enabled, it performs `git reset --hard HEAD` and `git sparse-checkout disable` in addition to the normal cleanup. Use this option for pipeline upload jobs that don't need to preserve local changes.
+
 ## Example
 
 Below is an example for using sparse-checkout plugin.
@@ -36,6 +40,21 @@ steps:
       - sparse-checkout#v1.1.0:
           paths:
             - .buildkite
+```
+
+### Handling Corrupted Repository States
+
+If your jobs are frequently cancelled during the git clone phase, you may encounter failures due to uncommitted changes left in the repository. Use the `clean_checkout` option to handle this:
+
+```yaml
+steps:
+  - label: "Pipeline upload with clean checkout"
+    command: "buildkite-agent pipeline upload"
+    plugins:
+      - sparse-checkout#v1.1.0:
+          paths:
+            - .buildkite
+          clean_checkout: true
 ```
 
 ## ⚒ Developing
