@@ -101,7 +101,7 @@ setup() {
   unstub git
 }
 
-@test "Clean checkout disabled uses normal git clean" {
+@test "Clean checkout disabled - uses normal git clean" {
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="false"
 
   stub ssh-keyscan "* : echo 'keyscan'"
