@@ -42,7 +42,7 @@ steps:
             - .buildkite
 ```
 
-### Handling Corrupted Repository States
+### Handling corrupted repository states
 
 If your jobs are frequently cancelled during the git clone phase, you may encounter failures due to uncommitted changes left in the repository. Use the `clean_checkout` option to handle this:
 
