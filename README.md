@@ -30,7 +30,7 @@ Whether to perform aggressive repository cleanup before checkout. This option ha
 
 ## Example
 
-Below is an example for using sparse-checkout plugin.
+Below is an example of using sparse-checkout plugin.
 
 ```yaml
 steps:
