@@ -42,7 +42,7 @@ if [[ ! -d .git ]]; then
         "${BUILDKITE_REPO}" .
 fi
 
-# Handle clean checkout option to deal with corrupted repository states
+# Enable clean checkout option to deal with corrupted repository states
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
     echo "Clean checkout enabled - resetting repository state"
     # Reset any changes that might prevent checkout
