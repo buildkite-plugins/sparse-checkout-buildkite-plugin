@@ -26,7 +26,11 @@ Whether to skip ssh-keyscan step. This will skip adding each ssh public key into
 
 #### `clean_checkout` ('true' or 'false')
 
-Whether to perform aggressive repository cleanup before checkout. This option handles scenarios where interrupted or cancelled jobs leave the git repository in a corrupted state with uncommitted changes that would prevent checkout. When enabled, it performs `git reset --hard HEAD` and `git sparse-checkout disable` in addition to the normal cleanup. Use this option for pipeline upload jobs that don't need to preserve local changes.
+Whether to perform aggressive repository cleanup before checkout. This option handles scenarios where interrupted or cancelled jobs leave the git repository in a corrupted state with uncommitted changes that would prevent checkout. When enabled, it performs `git reset --hard HEAD` and `git sparse-checkout disable` in addition to the normal cleanup. 
+
+**⚠️ Warning:** This option will destroy ALL local changes and remove ALL untracked files. The `git clean -ffxdq` command with the `-x` flag will also remove ignored files (such as credentials, local configuration, or cache files). Only use this option when you're certain no important local data needs to be preserved.
+
+Use this option for pipeline upload jobs that don't need to preserve local changes.
 
 ## Example
 
