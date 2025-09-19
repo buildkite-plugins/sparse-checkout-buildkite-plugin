@@ -142,3 +142,25 @@ setup() {
   unstub ssh-keyscan
   unstub git
 }
+
+@test "Clean checkout handles repository without HEAD gracefully" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "reset --hard HEAD : exit 1"  # simulate failure
+  stub git "clean -ffxdq : echo 'git clean'"
+  stub git "sparse-checkout disable : echo 'sparse-checkout disable'"
+  stub git "fetch --depth 1 origin * : echo 'git fetch'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout * : echo 'checkout'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Clean checkout enabled - resetting repository state'
+  assert_output --partial 'git clean'
+  assert_output --partial 'sparse-checkout disable'
+
+  unstub ssh-keyscan
+  unstub git
+}
