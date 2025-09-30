@@ -124,9 +124,11 @@ setup() {
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
 
   stub ssh-keyscan "* : echo 'keyscan'"
-  stub git "reset --hard HEAD : echo 'git reset hard'"
-  stub git "clean -ffxdq : echo 'git clean aggressive'"
+  stub git "status : echo 'status ok'"
   stub git "sparse-checkout disable : echo 'git sparse-checkout disable'"
+  stub git "clean -ffxdq : echo 'git clean aggressive'"
+  stub git "rev-parse --verify HEAD : echo 'HEAD'"
+  stub git "reset --hard HEAD : echo 'git reset hard'"
   stub git "fetch --depth 1 origin * : echo 'git fetch'"
   stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
   stub git "checkout * : echo 'checkout'"
@@ -147,9 +149,10 @@ setup() {
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
 
   stub ssh-keyscan "* : echo 'keyscan'"
-  stub git "reset --hard HEAD : exit 1"  # simulate failure
-  stub git "clean -ffxdq : echo 'git clean'"
+  stub git "status : echo 'status ok'"
   stub git "sparse-checkout disable : echo 'sparse-checkout disable'"
+  stub git "clean -ffxdq : echo 'git clean'"
+  stub git "rev-parse --verify HEAD : exit 1"
   stub git "fetch --depth 1 origin * : echo 'git fetch'"
   stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
   stub git "checkout * : echo 'checkout'"
