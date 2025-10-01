@@ -19,6 +19,11 @@ else
 fi
 
 SKIP_SSH_KEYSCAN_OPTION="$(plugin_read_config SKIP_SSH_KEYSCAN "false")"
+CLEAN_CHECKOUT_OPTION="$(plugin_read_config CLEAN_CHECKOUT "false")"
+
+if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
+    echo "⚠️  WARNING: clean_checkout is enabled - this will destroy any local changes and reset the repository state"
+fi
 
 if [[ -n "${BUILDKITE_REPO_SSH_HOST:-}" ]] && [[ "${SKIP_SSH_KEYSCAN_OPTION}" = "false" ]] ; then
     echo "Scanning SSH keys for remote git repository"
@@ -41,7 +46,26 @@ if [[ ! -d .git ]]; then
         "${BUILDKITE_REPO}" .
 fi
 
-git clean -ffxdq
+# Enable clean checkout option to deal with corrupted repository states
+if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
+    echo "Clean checkout enabled - resetting repository state"
+    # Remove index lock files
+    find .git -name "*.lock" -delete 2>/dev/null || true
+    # Reset index if corrupted
+      if ! git status >/dev/null 2>&1; then
+          rm -f .git/index 2>/dev/null || true
+      fi
+    # Disable sparse-checkout
+      git sparse-checkout disable 2>/dev/null || true
+    # Clean and reset
+      git clean -ffxdq
+
+      if git rev-parse --verify HEAD >/dev/null 2>&1; then
+          git reset --hard HEAD
+      fi
+  else
+      git clean -ffxdq
+  fi
 
 FETCH_FLAGS=()
 if [[ -n "${BUILDKITE_GIT_FETCH_FLAGS:-}" ]]; then

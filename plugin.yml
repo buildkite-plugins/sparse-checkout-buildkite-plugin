@@ -13,6 +13,9 @@ configuration:
     skip_ssh_keyscan:
       type: boolean
       default: false
+    clean_checkout:
+      type: boolean
+      default: false
   required:
     - paths
   additionalProperties: false

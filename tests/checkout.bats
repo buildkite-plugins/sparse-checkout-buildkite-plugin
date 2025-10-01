@@ -100,3 +100,70 @@ setup() {
   unstub ssh-keyscan
   unstub git
 }
+
+@test "Clean checkout disabled - uses normal git clean" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="false"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean -ffxdq : echo 'git clean normal'"
+  stub git "fetch --depth 1 origin * : echo 'git fetch'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout * : echo 'checkout'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'git clean normal'
+  refute_output --partial 'Clean checkout enabled'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Clean checkout enabled performs aggressive cleanup" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "status : echo 'status ok'"
+  stub git "sparse-checkout disable : echo 'git sparse-checkout disable'"
+  stub git "clean -ffxdq : echo 'git clean aggressive'"
+  stub git "rev-parse --verify HEAD : echo 'HEAD'"
+  stub git "reset --hard HEAD : echo 'git reset hard'"
+  stub git "fetch --depth 1 origin * : echo 'git fetch'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout * : echo 'checkout'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Clean checkout enabled - resetting repository state'
+  assert_output --partial 'git reset hard'
+  assert_output --partial 'git clean aggressive'
+  assert_output --partial 'git sparse-checkout disable'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Clean checkout handles repository without HEAD gracefully" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "status : echo 'status ok'"
+  stub git "sparse-checkout disable : echo 'sparse-checkout disable'"
+  stub git "clean -ffxdq : echo 'git clean'"
+  stub git "rev-parse --verify HEAD : exit 1"
+  stub git "fetch --depth 1 origin * : echo 'git fetch'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout * : echo 'checkout'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Clean checkout enabled - resetting repository state'
+  assert_output --partial 'git clean'
+  assert_output --partial 'sparse-checkout disable'
+
+  unstub ssh-keyscan
+  unstub git
+}
