@@ -46,6 +46,7 @@ steps:
     command: "buildkite-agent pipeline upload"
     plugins:
       - sparse-checkout#v1.1.0:
+      - sparse-checkout#v1.2.0:
           paths:
             - .buildkite
 ```
