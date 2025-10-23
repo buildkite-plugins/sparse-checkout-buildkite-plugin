@@ -7,6 +7,9 @@ DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 # shellcheck source=lib/plugin.bash
 . "$DIR/../lib/plugin.bash"
 
+VERBOSE_OPTION="$(plugin_read_config VERBOSE "false")"
+[[ "${VERBOSE_OPTION}" = "true" ]] && set -x
+
 NO_CONE_OPTION="$(plugin_read_config NO_CONE "false")"
 NO_CONE_PARAM=""
 [[ $NO_CONE_OPTION = false ]] || NO_CONE_PARAM="--no-cone"
