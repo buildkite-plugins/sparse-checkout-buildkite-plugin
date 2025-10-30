@@ -2,10 +2,16 @@
 
 set -euo pipefail
 
-DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=lib/shared.bash
+. "$DIR/../lib/shared.bash"
 
 # shellcheck source=lib/plugin.bash
 . "$DIR/../lib/plugin.bash"
+
+# Set up error trapping for better error logs
+setup_error_trap
 
 VERBOSE_OPTION="$(plugin_read_config VERBOSE "false")"
 [[ "${VERBOSE_OPTION}" = "true" ]] && set -x
@@ -15,80 +21,119 @@ NO_CONE_PARAM=""
 [[ $NO_CONE_OPTION = false ]] || NO_CONE_PARAM="--no-cone"
 
 if plugin_read_list_into_result PATHS; then
-    CHECKOUT_PATHS=("${result[@]}")
+  CHECKOUT_PATHS=("${result[@]}")
 else
-    echo "Missing 'paths' option in the plugin"
-    exit 1
+  log_error "Missing 'paths' option in the plugin configuration"
+  exit 1
 fi
 
 SKIP_SSH_KEYSCAN_OPTION="$(plugin_read_config SKIP_SSH_KEYSCAN "false")"
 CLEAN_CHECKOUT_OPTION="$(plugin_read_config CLEAN_CHECKOUT "false")"
 
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
-    echo "⚠️  WARNING: clean_checkout is enabled - this will destroy any local changes and reset the repository state"
+  log_warning "clean_checkout is enabled - this will destroy any local changes and reset the repository state"
 fi
 
-if [[ -n "${BUILDKITE_REPO_SSH_HOST:-}" ]] && [[ "${SKIP_SSH_KEYSCAN_OPTION}" = "false" ]] ; then
-    echo "Scanning SSH keys for remote git repository"
-    [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
-    ssh-keyscan "${BUILDKITE_REPO_SSH_HOST}" >> ~/.ssh/known_hosts
+if [[ -n "${BUILDKITE_REPO_SSH_HOST:-}" ]] && [[ "${SKIP_SSH_KEYSCAN_OPTION}" = "false" ]]; then
+  log_info "Scanning SSH keys for ${BUILDKITE_REPO_SSH_HOST}"
+  [[ -d ~/.ssh ]] || mkdir -p ~/.ssh
+
+  # Use a temporary file to capture ssh-keyscan output
+  tmp_file=$(mktemp)
+  if retry 5 ssh-keyscan "${BUILDKITE_REPO_SSH_HOST}" >"$tmp_file"; then
+    cat "$tmp_file" >>~/.ssh/known_hosts
+    rm -f "$tmp_file"
+    log_success "SSH keys scanned successfully"
+  else
+    rm -f "$tmp_file"
+    log_error "Failed to scan SSH keys for ${BUILDKITE_REPO_SSH_HOST} after 5 retries"
+    exit 1
+  fi
 else
-    echo "Skipped SSH keyscan"
+  log_info "Skipped SSH keyscan"
 fi
 
-echo "Creating sparse-checkout with paths: ${CHECKOUT_PATHS[*]}"
+log_info "Creating sparse-checkout with paths: ${CHECKOUT_PATHS[*]}"
+
+# Validate required environment variables
+validate_required_config "BUILDKITE_REPO" "${BUILDKITE_REPO:-}"
+validate_required_config "BUILDKITE_COMMIT" "${BUILDKITE_COMMIT:-}"
 
 # clone the repo without checking out files if it does not exist already
 if [[ ! -d .git ]]; then
-    git clone \
-        --depth 1 \
-        --filter=blob:none \
-        --no-checkout \
-        ${BUILDKITE_REPO_MIRROR:+--reference "$BUILDKITE_REPO_MIRROR"} \
-        -v \
-        "${BUILDKITE_REPO}" .
+  log_info "Cloning repository ${BUILDKITE_REPO}"
+  if ! git clone \
+    --depth 1 \
+    --filter=blob:none \
+    --no-checkout \
+    ${BUILDKITE_REPO_MIRROR:+--reference "$BUILDKITE_REPO_MIRROR"} \
+    -v \
+    "${BUILDKITE_REPO}" .; then
+    log_error "Failed to clone repository"
+    exit 1
+  fi
+  log_success "Repository cloned successfully"
 fi
 
 # Enable clean checkout option to deal with corrupted repository states
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
-    echo "Clean checkout enabled - resetting repository state"
-    # Remove index lock files
-    find .git -name "*.lock" -delete 2>/dev/null || true
-    # Reset index if corrupted
-      if ! git status >/dev/null 2>&1; then
-          rm -f .git/index 2>/dev/null || true
-      fi
-    # Disable sparse-checkout
-      git sparse-checkout disable 2>/dev/null || true
-    # Clean and reset
-      git clean -ffxdq
-
-      if git rev-parse --verify HEAD >/dev/null 2>&1; then
-          git reset --hard HEAD
-      fi
-  else
-      git clean -ffxdq
+  log_info "Clean checkout enabled - resetting repository state"
+  # Remove index lock files
+  find .git -name "*.lock" -delete 2>/dev/null || true
+  # Reset index if corrupted
+  if ! git status >/dev/null 2>&1; then
+    rm -f .git/index 2>/dev/null || true
   fi
+  # Disable sparse-checkout
+  git sparse-checkout disable 2>/dev/null || true
+  # Clean and reset
+  git clean -ffxdq
+
+  if git rev-parse --verify HEAD >/dev/null 2>&1; then
+    git reset --hard HEAD
+  fi
+else
+  git clean -ffxdq
+fi
 
 FETCH_FLAGS=()
 if [[ -n "${BUILDKITE_GIT_FETCH_FLAGS:-}" ]]; then
-    # Use read -a to split the flags safely and shellcheck-compliantly
-    read -r -a FETCH_FLAGS <<< "${BUILDKITE_GIT_FETCH_FLAGS}"
+  # Use read -a to split the flags safely and shellcheck-compliantly
+  read -r -a FETCH_FLAGS <<<"${BUILDKITE_GIT_FETCH_FLAGS}"
 fi
 
 FETCH_FLAGS+=(--depth 1 origin)
 
 if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
-    FETCH_FLAGS+=( "${BUILDKITE_BRANCH}" )
+  FETCH_FLAGS+=("${BUILDKITE_BRANCH}")
 else
-    FETCH_FLAGS+=( "${BUILDKITE_COMMIT}" )
+  FETCH_FLAGS+=("${BUILDKITE_COMMIT}")
 fi
 
-git fetch "${FETCH_FLAGS[@]}"
+log_info "Fetching ${BUILDKITE_COMMIT} from origin"
+if ! git fetch "${FETCH_FLAGS[@]}"; then
+  log_error "Failed to fetch ${BUILDKITE_COMMIT} from origin"
+  exit 1
+fi
+log_success "Fetch completed successfully"
 
-git sparse-checkout set ${NO_CONE_PARAM:+--no-cone} "${CHECKOUT_PATHS[@]}"
+log_info "Setting up sparse-checkout"
+if ! git sparse-checkout set ${NO_CONE_PARAM:+--no-cone} "${CHECKOUT_PATHS[@]}"; then
+  log_error "Failed to configure sparse-checkout"
+  exit 1
+fi
+
+log_info "Checking out ${BUILDKITE_COMMIT}"
 if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
-   git checkout FETCH_HEAD
+  if ! git checkout FETCH_HEAD; then
+    log_error "Failed to checkout FETCH_HEAD"
+    exit 1
+  fi
 else
-   git checkout "${BUILDKITE_COMMIT}"
+  if ! git checkout "${BUILDKITE_COMMIT}"; then
+    log_error "Failed to checkout ${BUILDKITE_COMMIT}"
+    exit 1
+  fi
 fi
+
+log_success "Sparse checkout completed successfully"

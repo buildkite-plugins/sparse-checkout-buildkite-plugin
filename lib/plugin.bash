@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# Load shared utilities
+# shellcheck source=lib/shared.bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/shared.bash"
+
 PLUGIN_PREFIX="SPARSE_CHECKOUT"
 
 # Reads either a value or a list from the given env prefix
