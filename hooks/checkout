@@ -78,20 +78,14 @@ fi
 # Enable clean checkout option to deal with corrupted repository states
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
   log_info "Clean checkout enabled - resetting repository state"
-  # Remove index lock files
+  # Remove lock files (prevents "another git process" errors)
   find .git -name "*.lock" -delete 2>/dev/null || true
-  # Reset index if corrupted
-  if ! git status >/dev/null 2>&1; then
-    rm -f .git/index 2>/dev/null || true
-  fi
-  # Disable sparse-checkout
-  git sparse-checkout disable 2>/dev/null || true
-  # Clean and reset
-  git clean -ffxdq
-
-  if git rev-parse --verify HEAD >/dev/null 2>&1; then
-    git reset --hard HEAD
-  fi
+  # Reset everything: index, working tree, and tracked files
+  # This handles corrupted index, uncommitted changes, and staged changes
+  git reset --hard HEAD 2>/dev/null || true
+  # Clean untracked and ignored files
+  # Must run AFTER reset to also clean files that were previously tracked
+  git clean -ffxdq 2>/dev/null || true
 else
   git clean -ffxdq
 fi
