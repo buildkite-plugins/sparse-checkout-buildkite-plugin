@@ -125,11 +125,8 @@ setup() {
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
 
   stub ssh-keyscan "* : echo 'keyscan'"
-  stub git "status : echo 'status ok'"
-  stub git "sparse-checkout disable : echo 'git sparse-checkout disable'"
-  stub git "clean -ffxdq : echo 'git clean aggressive'"
-  stub git "rev-parse --verify HEAD : echo 'HEAD'"
   stub git "reset --hard HEAD : echo 'git reset hard'"
+  stub git "clean -ffxdq : echo 'git clean aggressive'"
   stub git "fetch --depth 1 origin * : echo 'git fetch'"
   stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
   stub git "checkout * : echo 'checkout'"
@@ -140,7 +137,7 @@ setup() {
   assert_output --partial 'Clean checkout enabled - resetting repository state'
   assert_output --partial 'git reset hard'
   assert_output --partial 'git clean aggressive'
-  assert_output --partial 'git sparse-checkout disable'
+  refute_output --partial 'git sparse-checkout disable'
 
   unstub ssh-keyscan
   unstub git
@@ -150,10 +147,8 @@ setup() {
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
 
   stub ssh-keyscan "* : echo 'keyscan'"
-  stub git "status : echo 'status ok'"
-  stub git "sparse-checkout disable : echo 'sparse-checkout disable'"
+  stub git "reset --hard HEAD : exit 1"
   stub git "clean -ffxdq : echo 'git clean'"
-  stub git "rev-parse --verify HEAD : exit 1"
   stub git "fetch --depth 1 origin * : echo 'git fetch'"
   stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
   stub git "checkout * : echo 'checkout'"
@@ -163,7 +158,7 @@ setup() {
   assert_success
   assert_output --partial 'Clean checkout enabled - resetting repository state'
   assert_output --partial 'git clean'
-  assert_output --partial 'sparse-checkout disable'
+  refute_output --partial 'sparse-checkout disable'
 
   unstub ssh-keyscan
   unstub git
