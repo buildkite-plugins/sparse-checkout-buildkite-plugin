@@ -51,7 +51,7 @@ steps:
   - label: "Pipeline upload"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.3.0:
+      - sparse-checkout#v1.3.1:
           paths:
             - .buildkite
 ```
@@ -65,7 +65,7 @@ steps:
   - label: "Pipeline upload with clean checkout"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.3.0:
+      - sparse-checkout#v1.3.1:
           paths:
             - .buildkite
           clean_checkout: true
