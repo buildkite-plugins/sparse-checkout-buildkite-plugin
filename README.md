@@ -51,7 +51,7 @@ steps:
   - label: "Pipeline upload"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.3.1:
+      - sparse-checkout#v1.4.0:
           paths:
             - .buildkite
 ```
@@ -65,22 +65,25 @@ steps:
   - label: "Pipeline upload with clean checkout"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.3.1:
+      - sparse-checkout#v1.4.0:
           paths:
             - .buildkite
           clean_checkout: true
 ```
 
-## ⚒ Developing
-
-To run testing, shellchecks and plugin linting use `bk run` with the [Buildkite CLI](https://github.com/buildkite/cli).
+## Testing
 
 ```bash
-bk run
+docker run --rm -ti -v "${PWD}":/plugin buildkite/plugin-tester:latest
 ```
-## 👩‍💻 Contributing
 
-Your policy on how to contribute to the plugin!
+## Contributing
+
+1. Fork the repo
+2. Make the changes
+3. Run the tests
+4. Commit and push your changes
+5. Send a pull request
 
 ## 📜 License
 
