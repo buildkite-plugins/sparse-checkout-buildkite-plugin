@@ -19,6 +19,13 @@ configuration:
     verbose:
       type: boolean
       default: false
+    post_checkout:
+      type: object
+      properties:
+        unshallow:
+          type: boolean
+          default: false
+      additionalProperties: false
   required:
     - paths
   additionalProperties: false

@@ -42,6 +42,14 @@ Use this option for pipeline upload jobs that don't need to preserve local chang
 
 Enable verbose logging with bash execution tracing (`set -x`). This shows each command being executed and can help debug issues with ssh-keyscan, git operations, or other checkout problems. When enabled, you'll see detailed output including command arguments and any error messages from underlying tools.
 
+#### `post_checkout` (object)
+
+Options that run after the sparse checkout completes, in the `post-checkout` hook.
+
+##### `unshallow` ('true' or 'false')
+
+Convert the shallow clone into a full-depth clone by running `git fetch --unshallow origin` after checkout. This is useful when your build requires full git history (for example, changelog generation, `git log`, or `git blame`). If the repository is already unshallow, this step is skipped.
+
 ## Example
 
 Below is an example of using sparse-checkout plugin.
@@ -54,6 +62,23 @@ steps:
       - sparse-checkout#v1.4.0:
           paths:
             - .buildkite
+```
+
+### Unshallowing the repository
+
+If your build step requires full git history, enable the `unshallow` option under `post_checkout`:
+
+```yaml
+steps:
+  - label: "Build with full history"
+    command: "make changelog"
+    plugins:
+      - sparse-checkout#v1.5.0:
+          paths:
+            - src
+            - .buildkite
+          post_checkout:
+            unshallow: true
 ```
 
 ### Handling corrupted repository states
