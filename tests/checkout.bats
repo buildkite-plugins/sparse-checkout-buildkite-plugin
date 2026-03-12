@@ -143,6 +143,90 @@ setup() {
   unstub git
 }
 
+@test "Fetches pull request merge refspec when BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC is true" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="HEAD"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean * : echo 'git clean'"
+  stub git "fetch --depth 1 origin refs/pull/123/merge : echo 'git fetch merge refspec'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout FETCH_HEAD : echo 'checkout fetch_head'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'git fetch merge refspec'
+  assert_output --partial 'checkout fetch_head'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Fetches pull request merge refspec with known commit" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="456"
+  export BUILDKITE_COMMIT="abc123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean * : echo 'git clean'"
+  stub git "fetch --depth 1 origin refs/pull/456/merge : echo 'git fetch merge refspec'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout FETCH_HEAD : echo 'checkout fetch_head'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'git fetch merge refspec'
+  assert_output --partial 'checkout fetch_head'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Does not use merge refspec when BUILDKITE_PULL_REQUEST is false" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="false"
+  export BUILDKITE_COMMIT="abc123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean * : echo 'git clean'"
+  stub git "fetch --depth 1 origin abc123 : echo 'git fetch commit'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout abc123 : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'git fetch commit'
+  assert_output --partial 'checkout commit'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Does not use merge refspec when flag is not set" {
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="abc123"
+  unset BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean * : echo 'git clean'"
+  stub git "fetch --depth 1 origin abc123 : echo 'git fetch commit'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout abc123 : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'git fetch commit'
+  assert_output --partial 'checkout commit'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
 @test "Clean checkout handles repository without HEAD gracefully" {
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
 
