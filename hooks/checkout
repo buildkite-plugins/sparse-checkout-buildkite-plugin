@@ -98,7 +98,14 @@ fi
 
 FETCH_FLAGS+=(--depth 1 origin)
 
-if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+# Determine if we should use the pull request merge refspec
+USE_MERGE_REFSPEC="false"
+if [[ "${BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC:-false}" = "true" ]] \
+  && [[ -n "${BUILDKITE_PULL_REQUEST:-}" ]] \
+  && [[ "${BUILDKITE_PULL_REQUEST}" != "false" ]]; then
+  USE_MERGE_REFSPEC="true"
+  FETCH_FLAGS+=("refs/pull/${BUILDKITE_PULL_REQUEST}/merge")
+elif [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
   FETCH_FLAGS+=("${BUILDKITE_BRANCH}")
 else
   FETCH_FLAGS+=("${BUILDKITE_COMMIT}")
@@ -118,7 +125,7 @@ if ! git sparse-checkout set ${NO_CONE_PARAM:+--no-cone} "${CHECKOUT_PATHS[@]}";
 fi
 
 log_info "Checking out ${BUILDKITE_COMMIT}"
-if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+if [[ "${USE_MERGE_REFSPEC}" = "true" ]] || [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
   if ! git checkout FETCH_HEAD; then
     log_error "Failed to checkout FETCH_HEAD"
     exit 1
