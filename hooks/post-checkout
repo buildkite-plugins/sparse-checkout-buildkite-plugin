@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=lib/shared.bash
+. "$DIR/../lib/shared.bash"
+
+# shellcheck source=lib/plugin.bash
+. "$DIR/../lib/plugin.bash"
+
+setup_error_trap
+
+VERBOSE_OPTION="$(plugin_read_config VERBOSE "false")"
+[[ "${VERBOSE_OPTION}" = "true" ]] && set -x
+
+UNSHALLOW_OPTION="$(plugin_read_config POST_CHECKOUT_UNSHALLOW "false")"
+
+if [[ "${UNSHALLOW_OPTION}" = "true" ]]; then
+  if [[ "$(git rev-parse --is-shallow-repository)" = "true" ]]; then
+    log_info "Unshallowing repository"
+    if ! git fetch --unshallow origin; then
+      log_error "Failed to unshallow repository"
+      exit 1
+    fi
+    log_success "Repository unshallowed successfully"
+  else
+    log_info "Repository is not shallow, skipping unshallow"
+  fi
+fi
