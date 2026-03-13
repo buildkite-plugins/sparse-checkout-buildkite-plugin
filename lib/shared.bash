@@ -174,6 +174,34 @@ string_strip_suffix() {
 }
 
 # ============================================================================
+# Sparse checkout utilities
+# ============================================================================
+
+# Cleans up sparse-checkout config left behind by git sparse-checkout set.
+# Removes .git/config.worktree and unsets the three related config keys so that
+# subsequent non-sparse jobs on the same agent directory are not affected.
+#
+# Deliberately avoids `git sparse-checkout disable` which re-materialises all
+# files in the working tree (expensive on large monorepos).
+#
+# Covers both modern git (extensions.worktreeConfig + .git/config.worktree) and
+# older git that writes core.sparseCheckout directly into .git/config.
+cleanup_sparse_checkout_config() {
+  if [[ ! -d .git ]]; then
+    log_info "No .git directory found, skipping sparse-checkout config cleanup"
+    return 0
+  fi
+  log_info "Cleaning up sparse-checkout config"
+  # Unset the extension flag first so git does not look for the worktree config
+  # file during subsequent config operations.
+  git config --unset extensions.worktreeConfig 2>/dev/null || true
+  rm -f .git/config.worktree
+  git config --unset core.sparseCheckout 2>/dev/null || true
+  git config --unset core.sparseCheckoutCone 2>/dev/null || true
+  log_success "Sparse-checkout config cleaned up"
+}
+
+# ============================================================================
 # File utilities
 # ============================================================================
 
