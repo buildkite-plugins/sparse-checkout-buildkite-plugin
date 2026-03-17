@@ -16,16 +16,6 @@ VERBOSE_OPTION="$(plugin_read_config VERBOSE "false")"
 [[ "${VERBOSE_OPTION}" = "true" ]] && set -x
 
 UNSHALLOW_OPTION="$(plugin_read_config POST_CHECKOUT_UNSHALLOW "false")"
-CLEANUP_WORKTREE_CONFIG_OPTION="$(plugin_read_config CLEANUP_WORKTREE_CONFIG "false")"
-if [[ "${SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG:-}" = "true" ]]; then
-  CLEANUP_WORKTREE_CONFIG_OPTION="true"
-fi
-
-# Clean up sparse-checkout config after our checkout so that subsequent non-sparse jobs
-# on the same agent directory are not affected.
-if [[ "${CLEANUP_WORKTREE_CONFIG_OPTION}" = "true" ]]; then
-  cleanup_sparse_checkout_config
-fi
 
 if [[ "${UNSHALLOW_OPTION}" = "true" ]]; then
   if [[ "$(git rev-parse --is-shallow-repository)" = "true" ]]; then

@@ -20,8 +20,8 @@ if [[ "${SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG:-}" = "true" ]]; then
   CLEANUP_WORKTREE_CONFIG_OPTION="true"
 fi
 
-# Clean up any stale sparse-checkout config left by a previous run (including
-# interrupted jobs where pre-exit never fired) before we start our own checkout.
+# Clean up sparse-checkout config before the job exits so that subsequent non-sparse
+# jobs on the same agent directory are not affected.
 if [[ "${CLEANUP_WORKTREE_CONFIG_OPTION}" = "true" ]]; then
   cleanup_sparse_checkout_config
 fi
