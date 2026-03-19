@@ -38,6 +38,21 @@ Whether to perform aggressive repository cleanup before checkout. This option ha
 
 Use this option for pipeline upload jobs that don't need to preserve local changes.
 
+#### `verbose` ('true' or 'false')
+
+Enable verbose logging with bash execution tracing (`set -x`). This shows each command being executed and can help debug issues with ssh-keyscan, git operations, or other checkout problems. When enabled, you'll see detailed output including command arguments and any error messages from underlying tools.
+
+#### `post_checkout` (object)
+
+Options that run after the sparse checkout completes, in the `post-checkout` hook.
+
+#### `unshallow` ('true' or 'false')
+
+Convert the shallow clone into a full-depth clone by running `git fetch --unshallow origin` after checkout. This is useful when your build requires full git history (for example, changelog generation, `git log`, or `git blame`). If the repository is already unshallow, this step is skipped.
+
+## Environment Variables
+
+### BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC
 When `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC=true`, the plugin will retry the
 GitHub merge ref checkout if it sees the known "missing merge ref" failure:
 
@@ -50,17 +65,6 @@ GitHub merge ref checkout if it sees the known "missing merge ref" failure:
 This retry logic only applies to the specific merge-ref-not-ready error. Other
 `git fetch` failures still fail immediately.
 
-#### `verbose` ('true' or 'false')
-
-Enable verbose logging with bash execution tracing (`set -x`). This shows each command being executed and can help debug issues with ssh-keyscan, git operations, or other checkout problems. When enabled, you'll see detailed output including command arguments and any error messages from underlying tools.
-
-#### `post_checkout` (object)
-
-Options that run after the sparse checkout completes, in the `post-checkout` hook.
-
-##### `unshallow` ('true' or 'false')
-
-Convert the shallow clone into a full-depth clone by running `git fetch --unshallow origin` after checkout. This is useful when your build requires full git history (for example, changelog generation, `git log`, or `git blame`). If the repository is already unshallow, this step is skipped.
 
 ## Example
 
