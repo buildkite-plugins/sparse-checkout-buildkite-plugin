@@ -247,7 +247,7 @@ setup() {
   unstub git
 }
 
-@test "Fails when the head commit fallback fetch fails" {
+@test "Falls back to the default fetch path when merge ref retries are exhausted" {
   export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
   export BUILDKITE_PULL_REQUEST="123"
   export BUILDKITE_COMMIT="abc123"
@@ -267,7 +267,7 @@ setup() {
 
   assert_failure
   assert_output --partial 'falling back to abc123'
-  assert_output --partial 'Failed to fetch fallback commit abc123 from origin'
+  assert_output --partial 'Failed to fetch abc123 from origin'
 
   unstub sleep
   unstub ssh-keyscan
