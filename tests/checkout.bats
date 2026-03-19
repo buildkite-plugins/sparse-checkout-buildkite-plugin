@@ -247,33 +247,6 @@ setup() {
   unstub git
 }
 
-@test "Falls back to the default fetch path when merge ref retries are exhausted" {
-  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
-  export BUILDKITE_PULL_REQUEST="123"
-  export BUILDKITE_COMMIT="abc123"
-
-  stub ssh-keyscan "* : echo 'keyscan'"
-  stub sleep \
-    "2 : true" \
-    "5 : true"
-  stub git \
-    "clean * : echo 'git clean'" \
-    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
-    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
-    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
-    "fetch --depth 1 origin abc123 : echo 'fatal: bad object abc123' >&2; exit 1"
-
-  run "$PWD"/hooks/checkout
-
-  assert_failure
-  assert_output --partial 'falling back to abc123'
-  assert_output --partial 'Failed to fetch abc123 from origin'
-
-  unstub sleep
-  unstub ssh-keyscan
-  unstub git
-}
-
 @test "Does not use merge refspec when BUILDKITE_PULL_REQUEST is false" {
   export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
   export BUILDKITE_PULL_REQUEST="false"

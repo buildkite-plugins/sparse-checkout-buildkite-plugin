@@ -100,99 +100,10 @@ FETCH_FLAGS+=(--depth 1 origin)
 
 FETCH_OUTPUT=""
 
-run_fetch() {
-  local fetch_target=$1
-
-  if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${fetch_target}" 2>&1); then
-    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
-    return 0
-  else
-    local status=$?
-    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
-    return "${status}"
-  fi
-}
-
 is_missing_merge_ref_error() {
   local merge_ref="refs/pull/${BUILDKITE_PULL_REQUEST}/merge"
   [[ "${FETCH_OUTPUT}" == *"couldn't find remote ref ${merge_ref}"* ]] \
     || [[ "${FETCH_OUTPUT}" == *"not our ref ${merge_ref}"* ]]
-}
-
-fetch_default_target() {
-  if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
-    log_info "Fetching ${BUILDKITE_BRANCH} from origin"
-    if run_fetch "${BUILDKITE_BRANCH}"; then
-      return 0
-    else
-      local status=$?
-      log_error "Failed to fetch ${BUILDKITE_BRANCH} from origin"
-      return "${status}"
-    fi
-  else
-    log_info "Fetching ${BUILDKITE_COMMIT} from origin"
-    if run_fetch "${BUILDKITE_COMMIT}"; then
-      return 0
-    else
-      local status=$?
-      log_error "Failed to fetch ${BUILDKITE_COMMIT} from origin"
-      return "${status}"
-    fi
-  fi
-}
-
-checkout_default_target() {
-  log_info "Checking out ${BUILDKITE_COMMIT}"
-  if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
-    if ! git checkout FETCH_HEAD; then
-      log_error "Failed to checkout FETCH_HEAD"
-      return 1
-    fi
-  elif ! git checkout "${BUILDKITE_COMMIT}"; then
-    log_error "Failed to checkout ${BUILDKITE_COMMIT}"
-    return 1
-  fi
-}
-
-fetch_merge_ref_with_retries() {
-  local merge_ref="refs/pull/${BUILDKITE_PULL_REQUEST}/merge"
-
-  log_info "Fetching merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
-  if run_fetch "${merge_ref}"; then
-    return 0
-  else
-    local status=$?
-    if ! is_missing_merge_ref_error; then
-      log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
-      return "${status}"
-    fi
-  fi
-
-  log_warning "Merge ref ${merge_ref} was not available yet; retrying in 2s"
-  sleep 2
-  if run_fetch "${merge_ref}"; then
-    return 0
-  else
-    status=$?
-    if ! is_missing_merge_ref_error; then
-      log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
-      return "${status}"
-    fi
-  fi
-
-  log_warning "Merge ref ${merge_ref} was still not available; retrying in 5s"
-  sleep 5
-  if run_fetch "${merge_ref}"; then
-    return 0
-  else
-    status=$?
-    if ! is_missing_merge_ref_error; then
-      log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
-      return "${status}"
-    fi
-  fi
-
-  return 2
 }
 
 # Determine if we should use the pull request merge refspec
@@ -200,32 +111,72 @@ USE_MERGE_REFSPEC="false"
 if [[ "${BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC:-false}" = "true" ]] \
   && [[ -n "${BUILDKITE_PULL_REQUEST:-}" ]] \
   && [[ "${BUILDKITE_PULL_REQUEST}" != "false" ]]; then
-  if fetch_merge_ref_with_retries; then
-    USE_MERGE_REFSPEC="true"
+  USE_MERGE_REFSPEC="true"
+  MERGE_REF="refs/pull/${BUILDKITE_PULL_REQUEST}/merge"
+
+  log_info "Fetching merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
+  if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${MERGE_REF}" 2>&1); then
+    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
   else
     status=$?
-    if [[ "${status}" -ne 2 ]]; then
+    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
+    if ! is_missing_merge_ref_error; then
+      log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
       exit "${status}"
     fi
 
-    if [[ "${BUILDKITE_COMMIT}" = "HEAD" ]]; then
-      log_warning "Merge ref refs/pull/${BUILDKITE_PULL_REQUEST}/merge was still unavailable; falling back to branch ${BUILDKITE_BRANCH}"
-    else
-      log_warning "Merge ref refs/pull/${BUILDKITE_PULL_REQUEST}/merge was still unavailable; falling back to ${BUILDKITE_COMMIT}"
-    fi
-
-    if fetch_default_target; then
-      :
+    log_warning "Merge ref ${MERGE_REF} was not available yet; retrying in 2s"
+    sleep 2
+    if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${MERGE_REF}" 2>&1); then
+      [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
     else
       status=$?
-      exit "${status}"
+      [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
+      if ! is_missing_merge_ref_error; then
+        log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
+        exit "${status}"
+      fi
+
+      log_warning "Merge ref ${MERGE_REF} was still not available; retrying in 5s"
+      sleep 5
+      if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${MERGE_REF}" 2>&1); then
+        [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
+      else
+        status=$?
+        [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
+        if ! is_missing_merge_ref_error; then
+          log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
+          exit "${status}"
+        fi
+
+        if [[ "${BUILDKITE_COMMIT}" = "HEAD" ]]; then
+          log_warning "Merge ref ${MERGE_REF} was still unavailable; falling back to branch ${BUILDKITE_BRANCH}"
+        else
+          log_warning "Merge ref ${MERGE_REF} was still unavailable; falling back to ${BUILDKITE_COMMIT}"
+        fi
+
+        USE_MERGE_REFSPEC="false"
+      fi
     fi
   fi
-elif fetch_default_target; then
+fi
+
+if [[ "${USE_MERGE_REFSPEC}" != "true" ]]; then
+  if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+    FETCH_FLAGS+=("${BUILDKITE_BRANCH}")
+  else
+    FETCH_FLAGS+=("${BUILDKITE_COMMIT}")
+  fi
+fi
+
+if [[ "${USE_MERGE_REFSPEC}" = "true" ]]; then
   :
 else
-  status=$?
-  exit "${status}"
+  log_info "Fetching ${BUILDKITE_COMMIT} from origin"
+  if ! git fetch "${FETCH_FLAGS[@]}"; then
+    log_error "Failed to fetch ${BUILDKITE_COMMIT} from origin"
+    exit 1
+  fi
 fi
 log_success "Fetch completed successfully"
 
@@ -241,10 +192,18 @@ if [[ "${USE_MERGE_REFSPEC}" = "true" ]]; then
     log_error "Failed to checkout FETCH_HEAD"
     exit 1
   fi
-elif checkout_default_target; then
-  :
 else
-  status=$?
-  exit "${status}"
+  log_info "Checking out ${BUILDKITE_COMMIT}"
+  if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+    if ! git checkout FETCH_HEAD; then
+      log_error "Failed to checkout FETCH_HEAD"
+      exit 1
+    fi
+  else
+    if ! git checkout "${BUILDKITE_COMMIT}"; then
+      log_error "Failed to checkout ${BUILDKITE_COMMIT}"
+      exit 1
+    fi
+  fi
 fi
 log_success "Sparse checkout completed successfully"
