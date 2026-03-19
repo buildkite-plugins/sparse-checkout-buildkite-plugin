@@ -38,6 +38,18 @@ Whether to perform aggressive repository cleanup before checkout. This option ha
 
 Use this option for pipeline upload jobs that don't need to preserve local changes.
 
+When `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC=true`, the plugin will retry the
+GitHub merge ref checkout if it sees the known "missing merge ref" failure:
+
+- retry after 2 seconds
+- retry after 5 seconds
+- if the merge ref is still unavailable, fall back to the normal non-merge-ref
+  target (`BUILDKITE_BRANCH` when `BUILDKITE_COMMIT=HEAD`, otherwise
+  `BUILDKITE_COMMIT`)
+
+This retry logic only applies to the specific merge-ref-not-ready error. Other
+`git fetch` failures still fail immediately.
+
 #### `verbose` ('true' or 'false')
 
 Enable verbose logging with bash execution tracing (`set -x`). This shows each command being executed and can help debug issues with ssh-keyscan, git operations, or other checkout problems. When enabled, you'll see detailed output including command arguments and any error messages from underlying tools.
