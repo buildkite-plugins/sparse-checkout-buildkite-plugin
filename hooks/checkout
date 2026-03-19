@@ -167,11 +167,7 @@ if [[ "${USE_MERGE_REFSPEC}" != "true" ]]; then
   else
     FETCH_FLAGS+=("${BUILDKITE_COMMIT}")
   fi
-fi
 
-if [[ "${USE_MERGE_REFSPEC}" = "true" ]]; then
-  :
-else
   log_info "Fetching ${BUILDKITE_COMMIT} from origin"
   if ! git fetch "${FETCH_FLAGS[@]}"; then
     log_error "Failed to fetch ${BUILDKITE_COMMIT} from origin"
@@ -188,22 +184,18 @@ fi
 
 if [[ "${USE_MERGE_REFSPEC}" = "true" ]]; then
   log_info "Checking out merge ref for PR #${BUILDKITE_PULL_REQUEST}"
+else
+  log_info "Checking out ${BUILDKITE_COMMIT}"
+fi
+if [[ "${USE_MERGE_REFSPEC}" = "true" ]] || [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
   if ! git checkout FETCH_HEAD; then
     log_error "Failed to checkout FETCH_HEAD"
     exit 1
   fi
 else
-  log_info "Checking out ${BUILDKITE_COMMIT}"
-  if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
-    if ! git checkout FETCH_HEAD; then
-      log_error "Failed to checkout FETCH_HEAD"
-      exit 1
-    fi
-  else
-    if ! git checkout "${BUILDKITE_COMMIT}"; then
-      log_error "Failed to checkout ${BUILDKITE_COMMIT}"
-      exit 1
-    fi
+  if ! git checkout "${BUILDKITE_COMMIT}"; then
+    log_error "Failed to checkout ${BUILDKITE_COMMIT}"
+    exit 1
   fi
 fi
 log_success "Sparse checkout completed successfully"
