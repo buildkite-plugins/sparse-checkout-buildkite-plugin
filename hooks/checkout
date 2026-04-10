@@ -30,6 +30,13 @@ fi
 SKIP_SSH_KEYSCAN_OPTION="$(plugin_read_config SKIP_SSH_KEYSCAN "false")"
 CLEAN_CHECKOUT_OPTION="$(plugin_read_config CLEAN_CHECKOUT "false")"
 
+MERGE_REF_RETRY_ATTEMPTS_RAW="$(plugin_read_config MERGE_REF_RETRY_ATTEMPTS "3")"
+if [[ "${MERGE_REF_RETRY_ATTEMPTS_RAW}" =~ ^[0-9]+$ ]]; then
+  MERGE_REF_RETRY_ATTEMPTS="${MERGE_REF_RETRY_ATTEMPTS_RAW}"
+else
+  MERGE_REF_RETRY_ATTEMPTS=3
+fi
+
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
   log_warning "clean_checkout is enabled - this will destroy any local changes and reset the repository state"
 fi
@@ -106,6 +113,25 @@ is_missing_merge_ref_error() {
     || [[ "${FETCH_OUTPUT}" == *"not our ref ${merge_ref}"* ]]
 }
 
+# Try to fetch merge ref. Returns 0 on success, 1 if merge ref is missing (retry),
+# otherwise logs and exits with git's status.
+try_fetch_merge_ref() {
+  local merge_ref="$1"
+  if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${merge_ref}" 2>&1); then
+    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
+    return 0
+  else
+    local status=$?
+    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
+    if is_missing_merge_ref_error; then
+      return 1
+    else
+      log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
+      exit "${status}"
+    fi
+  fi
+}
+
 # Determine if we should use the pull request merge refspec
 USE_MERGE_REFSPEC="false"
 if [[ "${BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC:-false}" = "true" ]] \
@@ -115,49 +141,32 @@ if [[ "${BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC:-false}" = "true" ]] \
   MERGE_REF="refs/pull/${BUILDKITE_PULL_REQUEST}/merge"
 
   log_info "Fetching merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
-  if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${MERGE_REF}" 2>&1); then
-    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
-  else
-    status=$?
-    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
-    if ! is_missing_merge_ref_error; then
-      log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
-      exit "${status}"
+
+  fetch_succeeded=false
+  for ((attempt = 1; attempt <= MERGE_REF_RETRY_ATTEMPTS; attempt++)); do
+    if try_fetch_merge_ref "${MERGE_REF}"; then
+      fetch_succeeded=true
+      break
     fi
 
-    log_warning "Merge ref ${MERGE_REF} was not available yet; retrying in 2s"
-    sleep 2
-    if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${MERGE_REF}" 2>&1); then
-      [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
-    else
-      status=$?
-      [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
-      if ! is_missing_merge_ref_error; then
-        log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
-        exit "${status}"
-      fi
-
-      log_warning "Merge ref ${MERGE_REF} was still not available; retrying in 5s"
-      sleep 5
-      if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${MERGE_REF}" 2>&1); then
-        [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
+    if [[ "${attempt}" -lt "${MERGE_REF_RETRY_ATTEMPTS}" ]]; then
+      if [[ "${attempt}" -eq 1 ]]; then
+        log_warning "Merge ref ${MERGE_REF} was not available yet; retrying in 2s"
+        sleep 2
       else
-        status=$?
-        [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
-        if ! is_missing_merge_ref_error; then
-          log_error "Failed to fetch merge ref for PR #${BUILDKITE_PULL_REQUEST} from origin"
-          exit "${status}"
-        fi
-
-        if [[ "${BUILDKITE_COMMIT}" = "HEAD" ]]; then
-          log_warning "Merge ref ${MERGE_REF} was still unavailable; falling back to branch ${BUILDKITE_BRANCH}"
-        else
-          log_warning "Merge ref ${MERGE_REF} was still unavailable; falling back to ${BUILDKITE_COMMIT}"
-        fi
-
-        USE_MERGE_REFSPEC="false"
+        log_warning "Merge ref ${MERGE_REF} was not available yet; retrying in 5s"
+        sleep 5
       fi
     fi
+  done
+
+  if [[ "${fetch_succeeded}" != "true" ]]; then
+    if [[ "${BUILDKITE_COMMIT}" = "HEAD" ]]; then
+      log_warning "Merge ref ${MERGE_REF} was still unavailable; falling back to branch ${BUILDKITE_BRANCH}"
+    else
+      log_warning "Merge ref ${MERGE_REF} was still unavailable; falling back to ${BUILDKITE_COMMIT}"
+    fi
+    USE_MERGE_REFSPEC="false"
   fi
 fi
 

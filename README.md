@@ -42,6 +42,10 @@ Use this option for pipeline upload jobs that don't need to preserve local chang
 
 Enable verbose logging with bash execution tracing (`set -x`). This shows each command being executed and can help debug issues with ssh-keyscan, git operations, or other checkout problems. When enabled, you'll see detailed output including command arguments and any error messages from underlying tools.
 
+#### `merge_ref_retry_attempts` (integer)
+
+How many times to try fetching the GitHub pull-request merge ref (`refs/pull/<n>/merge`) when using merge-ref checkout (see `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC` below). Defaults to `3`. Between attempts the hook waits 2 seconds after the first failure and 5 seconds after later failures. Set to `0` to skip merge-ref fetch attempts and fall back immediately.
+
 #### `post_checkout` (object)
 
 Options that run after the sparse checkout completes, in the `post-checkout` hook.
@@ -54,13 +58,11 @@ Convert the shallow clone into a full-depth clone by running `git fetch --unshal
 
 ### BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC
 When `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC=true`, the plugin will retry the
-GitHub merge ref checkout if it sees the known "missing merge ref" failure:
-
-- retry after 2 seconds
-- retry after 5 seconds
-- if the merge ref is still unavailable, fall back to the normal non-merge-ref
-  target (`BUILDKITE_BRANCH` when `BUILDKITE_COMMIT=HEAD`, otherwise
-  `BUILDKITE_COMMIT`)
+GitHub merge ref checkout if it sees the known "missing merge ref" failure, up to
+`merge_ref_retry_attempts` times (default `3`). Between attempts it waits 2 seconds
+after the first failure and 5 seconds after subsequent failures. If the merge ref
+is still unavailable, it falls back to the normal non-merge-ref target
+(`BUILDKITE_BRANCH` when `BUILDKITE_COMMIT=HEAD`, otherwise `BUILDKITE_COMMIT`).
 
 This retry logic only applies to the specific merge-ref-not-ready error. Other
 `git fetch` failures still fail immediately.
