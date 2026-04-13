@@ -30,12 +30,7 @@ fi
 SKIP_SSH_KEYSCAN_OPTION="$(plugin_read_config SKIP_SSH_KEYSCAN "false")"
 CLEAN_CHECKOUT_OPTION="$(plugin_read_config CLEAN_CHECKOUT "false")"
 
-MERGE_REF_RETRY_ATTEMPTS_RAW="$(plugin_read_config MERGE_REF_RETRY_ATTEMPTS "3")"
-if [[ "${MERGE_REF_RETRY_ATTEMPTS_RAW}" =~ ^[0-9]+$ ]]; then
-  MERGE_REF_RETRY_ATTEMPTS="${MERGE_REF_RETRY_ATTEMPTS_RAW}"
-else
-  MERGE_REF_RETRY_ATTEMPTS=3
-fi
+MERGE_REF_RETRY_ATTEMPTS="$(plugin_read_config MERGE_REF_RETRY_ATTEMPTS "3")"
 
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
   log_warning "clean_checkout is enabled - this will destroy any local changes and reset the repository state"
