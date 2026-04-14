@@ -177,9 +177,10 @@ string_strip_suffix() {
 # Sparse checkout utilities
 # ============================================================================
 
-# Cleans up sparse-checkout config left behind by git sparse-checkout set.
-# Removes .git/config.worktree and unsets the three related config keys so that
-# subsequent non-sparse jobs on the same agent directory are not affected.
+# Cleans up sparse-checkout state left behind by git sparse-checkout set.
+# Removes .git/config.worktree, unsets the three related config keys, and clears
+# per-file skip-worktree bits from the index so that subsequent non-sparse jobs
+# on the same agent directory are not affected.
 #
 # Deliberately avoids `git sparse-checkout disable` which re-materialises all
 # files in the working tree (expensive on large monorepos).
@@ -192,6 +193,11 @@ cleanup_sparse_checkout_config() {
     return 0
   fi
   log_info "Cleaning up sparse-checkout config"
+  # Clear skip-worktree bits from the index before touching config so that
+  # subsequent non-sparse jobs see all files. These bits are set by
+  # `git sparse-checkout set` and persist independently of config entries.
+  # Using update-index avoids materialising files to disk (unlike disable).
+  git ls-files -t 2>/dev/null | awk '/^S /{print substr($0, 3)}' | xargs git update-index --no-skip-worktree -- 2>/dev/null || true
   # Unset the extension flag first so git does not look for the worktree config
   # file during subsequent config operations.
   git config --unset extensions.worktreeConfig 2>/dev/null || true
