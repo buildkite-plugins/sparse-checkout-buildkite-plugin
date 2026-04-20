@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=lib/shared.bash
+. "$DIR/../lib/shared.bash"
+
+# shellcheck source=lib/plugin.bash
+. "$DIR/../lib/plugin.bash"
+
+setup_error_trap
+
+VERBOSE_OPTION="$(plugin_read_config VERBOSE "false")"
+[[ "${VERBOSE_OPTION}" = "true" ]] && set -x
+
+CLEANUP_WORKTREE_CONFIG_OPTION="$(plugin_read_config CLEANUP_WORKTREE_CONFIG "false")"
+if [[ "${SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG:-}" = "true" ]]; then
+  CLEANUP_WORKTREE_CONFIG_OPTION="true"
+fi
+
+# Clean up sparse-checkout config before the job exits so that subsequent non-sparse
+# jobs on the same agent directory are not affected.
+if [[ "${CLEANUP_WORKTREE_CONFIG_OPTION}" = "true" ]]; then
+  cleanup_sparse_checkout_config
+fi
