@@ -17,6 +17,6 @@ VERBOSE_OPTION="$(plugin_read_config VERBOSE "false")"
 
 # Clean up any stale sparse-checkout config left by a previous run (including
 # interrupted jobs where pre-exit never fired) before we start our own checkout.
-if [[ "$(plugin_read_config CLEANUP_WORKTREE_CONFIG "false")" = "true" ]]; then
+if [[ "$(plugin_read_config CLEANUP_SPARSE_STATE "false")" = "true" ]]; then
   cleanup_sparse_checkout_config
 fi

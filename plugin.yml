@@ -16,7 +16,7 @@ configuration:
     clean_checkout:
       type: boolean
       default: false
-    cleanup_worktree_config:
+    cleanup_sparse_state:
       type: boolean
       default: false
     verbose:

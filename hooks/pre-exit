@@ -17,6 +17,6 @@ VERBOSE_OPTION="$(plugin_read_config VERBOSE "false")"
 
 # Clean up sparse-checkout config before the job exits so subsequent non-sparse
 # jobs on the same agent directory are not affected.
-if [[ "$(plugin_read_config CLEANUP_WORKTREE_CONFIG "false")" = "true" ]]; then
+if [[ "$(plugin_read_config CLEANUP_SPARSE_STATE "false")" = "true" ]]; then
   cleanup_sparse_checkout_config
 fi

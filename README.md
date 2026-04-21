@@ -38,9 +38,9 @@ Whether to perform aggressive repository cleanup before checkout. This option ha
 
 Use this option for pipeline upload jobs that don't need to preserve local changes.
 
-#### `cleanup_worktree_config` ('true' or 'false')
+#### `cleanup_sparse_state` ('true' or 'false')
 
-Remove the sparse-checkout worktree config after checkout completes, so that subsequent jobs on the same agent that do **not** use sparse checkout are not affected.
+Tear down sparse-checkout state after the job finishes, so that subsequent jobs on the same agent that do **not** use sparse checkout are not affected.
 
 When `git sparse-checkout` runs, it writes `.git/config.worktree` and sets `extensions.worktreeConfig`, `core.sparseCheckout`, and `core.sparseCheckoutCone` in git config. On agents with persistent build directories, this state persists across jobs — causing subsequent non-sparse jobs to silently inherit the sparse paths and fail to find files outside them.
 
@@ -110,9 +110,9 @@ steps:
           clean_checkout: true
 ```
 
-### Cleaning up worktree config for shared agent fleets
+### Cleaning up sparse-checkout state for shared agent fleets
 
-On agents with persistent build directories, sparse-checkout leaves behind git config state that causes subsequent non-sparse jobs to silently inherit the sparse paths and fail. Enable `cleanup_worktree_config` to clean this up before and after each sparse checkout:
+On agents with persistent build directories, sparse-checkout leaves behind git config state that causes subsequent non-sparse jobs to silently inherit the sparse paths and fail. Enable `cleanup_sparse_state` to clean this up before and after each sparse checkout:
 
 ```yaml
 steps:
@@ -122,7 +122,7 @@ steps:
       - sparse-checkout#v1.6.0:
           paths:
             - src
-          cleanup_worktree_config: true
+          cleanup_sparse_state: true
 ```
 
 The plugin will clean up stale sparse config in `pre-exit` (protecting the next job on the same directory from our own sparse state) and again in `pre-checkout` (protecting the current run from a previous interrupted job where `pre-exit` never fired).

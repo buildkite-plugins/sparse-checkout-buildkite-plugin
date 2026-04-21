@@ -13,8 +13,8 @@ teardown() {
   unstub git 2>/dev/null || true
 }
 
-@test "Cleanup worktree config enabled - removes config.worktree and unsets all sparse config keys" {
-  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG="true"
+@test "Cleanup sparse state enabled - removes config.worktree and unsets all sparse config keys" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_SPARSE_STATE="true"
 
   WORK_DIR="$(mktemp -d)"
   mkdir -p "$WORK_DIR/.git"
@@ -36,8 +36,8 @@ teardown() {
   [[ ! -f "$WORK_DIR/.git/config.worktree" ]]
 }
 
-@test "Cleanup worktree config enabled - succeeds even when no prior sparse config exists" {
-  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG="true"
+@test "Cleanup sparse state enabled - succeeds even when no prior sparse config exists" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_SPARSE_STATE="true"
 
   WORK_DIR="$(mktemp -d)"
   mkdir -p "$WORK_DIR/.git"
@@ -57,8 +57,8 @@ teardown() {
   assert_output --partial 'Sparse-checkout config cleaned up'
 }
 
-@test "Cleanup worktree config enabled - skips when no .git directory" {
-  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG="true"
+@test "Cleanup sparse state enabled - skips when no .git directory" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_SPARSE_STATE="true"
 
   WORK_DIR="$(mktemp -d)"
 
@@ -70,8 +70,8 @@ teardown() {
   refute_output --partial 'Cleaning up sparse-checkout config'
 }
 
-@test "Cleanup worktree config enabled - pipes tracked files to update-index" {
-  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG="true"
+@test "Cleanup sparse state enabled - pipes tracked files to update-index" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_SPARSE_STATE="true"
 
   WORK_DIR="$(mktemp -d)"
   mkdir -p "$WORK_DIR/.git"
@@ -90,7 +90,7 @@ teardown() {
   assert_output --partial 'Sparse-checkout config cleaned up'
 }
 
-@test "Cleanup worktree config not configured - no cleanup runs" {
+@test "Cleanup sparse state not configured - no cleanup runs" {
   run "$HOOK_DIR/hooks/pre-exit"
 
   assert_success
