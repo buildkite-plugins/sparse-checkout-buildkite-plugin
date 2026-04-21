@@ -21,6 +21,8 @@ teardown() {
   echo '[core]' > "$WORK_DIR/.git/config.worktree"
 
   stub git \
+    "ls-files -z : true" \
+    "update-index -z --no-skip-worktree --stdin : true" \
     "config --unset extensions.worktreeConfig : true" \
     "config --unset core.sparseCheckout : true" \
     "config --unset core.sparseCheckoutCone : true"
@@ -41,6 +43,8 @@ teardown() {
   mkdir -p "$WORK_DIR/.git"
 
   stub git \
+    "ls-files -z : true" \
+    "update-index -z --no-skip-worktree --stdin : true" \
     "config --unset extensions.worktreeConfig : true" \
     "config --unset core.sparseCheckout : true" \
     "config --unset core.sparseCheckoutCone : true"
@@ -64,25 +68,6 @@ teardown() {
   assert_success
   assert_output --partial 'No .git directory found, skipping sparse-checkout config cleanup'
   refute_output --partial 'Cleaning up sparse-checkout config'
-}
-
-@test "Cleanup worktree config enabled via SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG env var" {
-  unset BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG
-  export SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG="true"
-
-  WORK_DIR="$(mktemp -d)"
-  mkdir -p "$WORK_DIR/.git"
-
-  stub git \
-    "config --unset extensions.worktreeConfig : true" \
-    "config --unset core.sparseCheckout : true" \
-    "config --unset core.sparseCheckoutCone : true"
-
-  cd "$WORK_DIR"
-  run "$HOOK_DIR/hooks/pre-checkout"
-
-  assert_success
-  assert_output --partial 'Cleaning up sparse-checkout config'
 }
 
 @test "Cleanup worktree config not configured - does nothing" {

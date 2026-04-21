@@ -197,7 +197,7 @@ cleanup_sparse_checkout_config() {
   # subsequent non-sparse jobs see all files. These bits are set by
   # `git sparse-checkout set` and persist independently of config entries.
   # Using update-index avoids materialising files to disk (unlike disable).
-  git ls-files -t 2>/dev/null | awk '/^S /{print substr($0, 3)}' | xargs git update-index --no-skip-worktree -- 2>/dev/null || true
+  git ls-files -z | git update-index -z --no-skip-worktree --stdin || true
   # Unset the extension flag first so git does not look for the worktree config
   # file during subsequent config operations.
   git config --unset extensions.worktreeConfig 2>/dev/null || true
