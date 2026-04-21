@@ -44,13 +44,13 @@ Tear down sparse-checkout state after the job finishes, so that subsequent jobs 
 
 When `git sparse-checkout` runs, it writes `.git/config.worktree` and sets `extensions.worktreeConfig`, `core.sparseCheckout`, and `core.sparseCheckoutCone` in git config. On agents with persistent build directories, this state persists across jobs — causing subsequent non-sparse jobs to silently inherit the sparse paths and fail to find files outside them.
 
+In most setups you do not need this option. The plugin's `hooks/environment` already isolates sparse checkouts into a `-sparse`-suffixed build directory, so non-sparse jobs on the same agent land elsewhere and never see sparse state. Enable `cleanup_sparse_state` only when your agent configuration overrides `BUILDKITE_BUILD_CHECKOUT_PATH` after the plugin's env hook runs, causing sparse and non-sparse checkouts to share the same directory.
+
 Cleanup runs at `pre-exit` after the job's command finishes, so the next job on the same directory starts clean. This runs regardless of job success or failure. Cleanup runs at `pre-exit` rather than `post-checkout` so that sparse state stays active for the duration of the job command.
 
 A second pass runs at `pre-checkout` as a safety net for cases where a previous job's `pre-exit` never fired (for example, agent crashes or `SIGKILL`).
 
 The cleanup removes `.git/config.worktree` and unsets `extensions.worktreeConfig`, `core.sparseCheckout`, and `core.sparseCheckoutCone`. The working tree files are left intact. This deliberately avoids `git sparse-checkout disable`, which re-materialises the full working tree (expensive on large monorepos).
-
-Recommended for shared agent fleets with persistent build directories where sparse and non-sparse pipelines may run on the same agent.
 
 #### `verbose` ('true' or 'false')
 
@@ -110,9 +110,9 @@ steps:
           clean_checkout: true
 ```
 
-### Cleaning up sparse-checkout state for shared agent fleets
+### Cleaning up sparse-checkout state when the default path isolation is overridden
 
-On agents with persistent build directories, sparse-checkout leaves behind git config state that causes subsequent non-sparse jobs to silently inherit the sparse paths and fail. Enable `cleanup_sparse_state` to clean this up before and after each sparse checkout:
+If your agent configuration causes sparse and non-sparse jobs to share the same checkout directory (overriding the plugin's `-sparse` path isolation), sparse-checkout state can leak between them. Enable `cleanup_sparse_state` to clean this up at `pre-exit` and `pre-checkout`:
 
 ```yaml
 steps:
