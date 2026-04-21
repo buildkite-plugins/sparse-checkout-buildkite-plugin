@@ -44,16 +44,13 @@ Remove the sparse-checkout worktree config after checkout completes, so that sub
 
 When `git sparse-checkout` runs, it writes `.git/config.worktree` and sets `extensions.worktreeConfig`, `core.sparseCheckout`, and `core.sparseCheckoutCone` in git config. On agents with persistent build directories, this state persists across jobs — causing subsequent non-sparse jobs to silently inherit the sparse paths and fail to find files outside them.
 
-Enabling this option runs cleanup in two places:
+Cleanup runs at `pre-exit` after the job's command finishes, so the next job on the same directory starts clean. This runs regardless of job success or failure. Cleanup runs at `pre-exit` rather than `post-checkout` so that sparse state stays active for the duration of the job command.
 
-- **`pre-checkout`**: clears stale sparse config at the start of each run, before the new checkout begins. Handles interrupted jobs where post-checkout never fired.
-- **`post-checkout`**: clears sparse config after the checkout completes, so the next job on the same directory starts clean.
+A second pass runs at `pre-checkout` as a safety net for cases where a previous job's `pre-exit` never fired (for example, agent crashes or `SIGKILL`).
 
 The cleanup removes `.git/config.worktree` and unsets `extensions.worktreeConfig`, `core.sparseCheckout`, and `core.sparseCheckoutCone`. The working tree files are left intact. This deliberately avoids `git sparse-checkout disable`, which re-materialises the full working tree (expensive on large monorepos).
 
-This can also be enabled without modifying individual pipeline configs by setting `SPARSE_CHECKOUT_CLEANUP_WORKTREE_CONFIG=true` as an agent environment variable — useful for enforcing the behaviour fleet-wide.
-
-**Recommended for:** shared agent fleets with persistent build directories where sparse and non-sparse pipelines may run on the same agent.
+Recommended for shared agent fleets with persistent build directories where sparse and non-sparse pipelines may run on the same agent.
 
 #### `verbose` ('true' or 'false')
 
@@ -128,7 +125,7 @@ steps:
           cleanup_worktree_config: true
 ```
 
-The plugin will clean up stale sparse config in `pre-checkout` (protecting the current run from a previous interrupted job) and again in `post-checkout` (protecting the next run from our own sparse state).
+The plugin will clean up stale sparse config in `pre-exit` (protecting the next job on the same directory from our own sparse state) and again in `pre-checkout` (protecting the current run from a previous interrupted job where `pre-exit` never fired).
 
 ## Testing
 
