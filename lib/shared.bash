@@ -174,6 +174,29 @@ string_strip_suffix() {
 }
 
 # ============================================================================
+# Sparse checkout utilities
+# ============================================================================
+
+# Tears down sparse-checkout state without re-materialising the working tree
+# (unlike `git sparse-checkout disable`, which is expensive on large monorepos).
+cleanup_sparse_checkout_config() {
+  if [[ ! -d .git ]]; then
+    log_info "No .git directory found, skipping sparse-checkout config cleanup"
+    return 0
+  fi
+  log_info "Cleaning up sparse-checkout config"
+  # Paths without skip-worktree set are no-ops, so feeding every tracked path
+  # stays index-only and cheap even on large repos. -z handles special chars.
+  git ls-files -z | git update-index -z --no-skip-worktree --stdin || true
+  # Unset extension first so git ignores the worktree config we're about to delete.
+  git config --unset extensions.worktreeConfig 2>/dev/null || true
+  rm -f .git/config.worktree
+  git config --unset core.sparseCheckout 2>/dev/null || true
+  git config --unset core.sparseCheckoutCone 2>/dev/null || true
+  log_success "Sparse-checkout config cleaned up"
+}
+
+# ============================================================================
 # File utilities
 # ============================================================================
 

@@ -2,6 +2,12 @@
 
 setup() {
   load "${BATS_PLUGIN_PATH}/load.bash"
+  HOOK_DIR="$PWD"
+}
+
+teardown() {
+  cd "$HOOK_DIR" 2>/dev/null || true
+  unstub git 2>/dev/null || true
 }
 
 @test "Unshallow enabled and repo is shallow runs git fetch --unshallow" {
@@ -10,13 +16,11 @@ setup() {
   stub git "rev-parse --is-shallow-repository : echo 'true'" \
            "fetch --unshallow origin : echo 'git fetch unshallow'"
 
-  run "$PWD"/hooks/post-checkout
+  run "$HOOK_DIR"/hooks/post-checkout
 
   assert_success
   assert_output --partial 'Unshallowing repository'
   assert_output --partial 'Repository unshallowed successfully'
-
-  unstub git
 }
 
 @test "Unshallow enabled and repo is not shallow skips unshallow" {
@@ -24,16 +28,14 @@ setup() {
 
   stub git "rev-parse --is-shallow-repository : echo 'false'"
 
-  run "$PWD"/hooks/post-checkout
+  run "$HOOK_DIR"/hooks/post-checkout
 
   assert_success
   assert_output --partial 'Repository is not shallow, skipping unshallow'
-
-  unstub git
 }
 
 @test "Unshallow not configured skips post-checkout operations" {
-  run "$PWD"/hooks/post-checkout
+  run "$HOOK_DIR"/hooks/post-checkout
 
   assert_success
   refute_output --partial 'Unshallowing repository'
@@ -45,10 +47,8 @@ setup() {
   stub git "rev-parse --is-shallow-repository : echo 'true'" \
            "fetch --unshallow origin : exit 1"
 
-  run "$PWD"/hooks/post-checkout
+  run "$HOOK_DIR"/hooks/post-checkout
 
   assert_failure
   assert_output --partial 'Failed to unshallow repository'
-
-  unstub git
 }

@@ -16,6 +16,9 @@ configuration:
     clean_checkout:
       type: boolean
       default: false
+    cleanup_sparse_state:
+      type: boolean
+      default: false
     merge_ref_retry_attempts:
       type: integer
       default: 3

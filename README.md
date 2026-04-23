@@ -38,6 +38,20 @@ Whether to perform aggressive repository cleanup before checkout. This option ha
 
 Use this option for pipeline upload jobs that don't need to preserve local changes.
 
+#### `cleanup_sparse_state` ('true' or 'false')
+
+Tear down sparse-checkout state after the job finishes, so that subsequent jobs on the same agent that do **not** use sparse checkout are not affected.
+
+When `git sparse-checkout` runs, it writes `.git/config.worktree` and sets `extensions.worktreeConfig`, `core.sparseCheckout`, and `core.sparseCheckoutCone` in git config. On agents with persistent build directories, this state persists across jobs — causing subsequent non-sparse jobs to silently inherit the sparse paths and fail to find files outside them.
+
+In most setups you do not need this option. The plugin's `hooks/environment` already isolates sparse checkouts into a `-sparse`-suffixed build directory, so non-sparse jobs on the same agent land elsewhere and never see sparse state. Enable `cleanup_sparse_state` only when your agent configuration overrides `BUILDKITE_BUILD_CHECKOUT_PATH` after the plugin's env hook runs, causing sparse and non-sparse checkouts to share the same directory.
+
+Cleanup runs at `pre-exit` after the job's command finishes, so the next job on the same directory starts clean. This runs regardless of job success or failure. Cleanup runs at `pre-exit` rather than `post-checkout` so that sparse state stays active for the duration of the job command.
+
+A second pass runs at `pre-checkout` as a safety net for cases where a previous job's `pre-exit` never fired (for example, agent crashes or `SIGKILL`).
+
+The cleanup removes `.git/config.worktree` and unsets `extensions.worktreeConfig`, `core.sparseCheckout`, and `core.sparseCheckoutCone`. The working tree files are left intact. This deliberately avoids `git sparse-checkout disable`, which re-materialises the full working tree (expensive on large monorepos).
+
 #### `verbose` ('true' or 'false')
 
 Enable verbose logging with bash execution tracing (`set -x`). This shows each command being executed and can help debug issues with ssh-keyscan, git operations, or other checkout problems. When enabled, you'll see detailed output including command arguments and any error messages from underlying tools.
@@ -77,7 +91,7 @@ steps:
   - label: "Pipeline upload"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.6.0:
+      - sparse-checkout#v1.7.0:
           paths:
             - .buildkite
 ```
@@ -91,7 +105,7 @@ steps:
   - label: "Build with full history"
     command: "make changelog"
     plugins:
-      - sparse-checkout#v1.6.0:
+      - sparse-checkout#v1.7.0:
           paths:
             - src
             - .buildkite
@@ -108,11 +122,28 @@ steps:
   - label: "Pipeline upload with clean checkout"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.6.0:
+      - sparse-checkout#v1.7.0:
           paths:
             - .buildkite
           clean_checkout: true
 ```
+
+### Cleaning up sparse-checkout state when the default path isolation is overridden
+
+If your agent configuration causes sparse and non-sparse jobs to share the same checkout directory (overriding the plugin's `-sparse` path isolation), sparse-checkout state can leak between them. Enable `cleanup_sparse_state` to clean this up at `pre-exit` and `pre-checkout`:
+
+```yaml
+steps:
+  - label: "Sparse build"
+    command: "make build"
+    plugins:
+      - sparse-checkout#v1.7.0:
+          paths:
+            - src
+          cleanup_sparse_state: true
+```
+
+The plugin will clean up stale sparse config in `pre-exit` (protecting the next job on the same directory from our own sparse state) and again in `pre-checkout` (protecting the current run from a previous interrupted job where `pre-exit` never fired).
 
 ## Testing
 
