@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=lib/shared.bash
+. "$DIR/../lib/shared.bash"
+
+# shellcheck source=lib/plugin.bash
+. "$DIR/../lib/plugin.bash"
+
+setup_error_trap
+
+VERBOSE_OPTION="$(plugin_read_config VERBOSE "false")"
+[[ "${VERBOSE_OPTION}" = "true" ]] && set -x
+
+# Clean up any stale sparse-checkout config left by a previous run (including
+# interrupted jobs where pre-exit never fired) before we start our own checkout.
+if [[ "$(plugin_read_config CLEANUP_SPARSE_STATE "false")" = "true" ]]; then
+  cleanup_sparse_checkout_config
+fi
