@@ -185,6 +185,36 @@ setup() {
   unstub git
 }
 
+@test "Retries missing merge ref before succeeding" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="abc123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "2 : true" \
+    "5 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git fetch merge refspec'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout FETCH_HEAD : echo 'checkout fetch_head'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'retrying in 2s'
+  assert_output --partial 'retrying in 5s'
+  assert_output --partial 'git fetch merge refspec'
+  assert_output --partial 'checkout fetch_head'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
 @test "Does not use merge refspec when BUILDKITE_PULL_REQUEST is false" {
   export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
   export BUILDKITE_PULL_REQUEST="false"
