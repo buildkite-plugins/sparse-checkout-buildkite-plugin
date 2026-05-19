@@ -121,6 +121,100 @@ setup() {
   unstub git
 }
 
+@test "clean_checkout only-upon-failure uses normal git clean when sparse-checkout succeeds" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="only-upon-failure"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean -ffxdq : echo 'git clean normal'"
+  stub git "fetch --depth 1 origin * : echo 'git fetch'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout * : echo 'checkout'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'only-upon-failure'
+  assert_output --partial 'git clean normal'
+  refute_output --partial 'clean_checkout is enabled'
+  refute_output --partial 'performing aggressive clean checkout and retrying'
+  refute_output --partial 'git reset hard'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "clean_checkout only-upon-failure retries with aggressive clean after checkout failure" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="only-upon-failure"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean -ffxdq : echo 'git clean normal'"
+  stub git "fetch --depth 1 origin * : echo 'git fetch'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout * : echo 'error: Your local changes' >&2; exit 1"
+  stub git "reset --hard HEAD : echo 'git reset hard'"
+  stub git "clean -ffxdq : echo 'git clean aggressive'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout retry'"
+  stub git "checkout * : echo 'checkout success'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'performing aggressive clean checkout and retrying'
+  assert_output --partial 'git reset hard'
+  assert_output --partial 'git clean aggressive'
+  assert_output --partial 'git sparse-checkout retry'
+  assert_output --partial 'checkout success'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "clean_checkout only-upon-failure fails if retry after aggressive clean still fails" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="only-upon-failure"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean -ffxdq : echo 'git clean'"
+  stub git "fetch --depth 1 origin * : echo 'git fetch'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout'"
+  stub git "checkout * : exit 1"
+  stub git "reset --hard HEAD : echo 'git reset hard'"
+  stub git "clean -ffxdq : echo 'git clean aggressive'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout retry'"
+  stub git "checkout * : exit 1"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure
+  assert_output --partial 'performing aggressive clean checkout and retrying'
+  assert_output --partial 'Failed to checkout dummy-commit-hash'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "clean_checkout only-upon-failure retries after sparse-checkout set failure" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="only-upon-failure"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git "clean -ffxdq : echo 'git clean normal'"
+  stub git "fetch --depth 1 origin * : echo 'git fetch'"
+  stub git "sparse-checkout set * * : exit 1"
+  stub git "reset --hard HEAD : echo 'git reset hard'"
+  stub git "clean -ffxdq : echo 'git clean aggressive'"
+  stub git "sparse-checkout set * * : echo 'git sparse-checkout retry'"
+  stub git "checkout * : echo 'checkout success'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Failed to configure sparse-checkout'
+  assert_output --partial 'performing aggressive clean checkout and retrying'
+  assert_output --partial 'git sparse-checkout retry'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
 @test "Clean checkout enabled performs aggressive cleanup" {
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
 

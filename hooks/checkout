@@ -34,7 +34,48 @@ MERGE_REF_RETRY_ATTEMPTS="$(plugin_read_config MERGE_REF_RETRY_ATTEMPTS "3")"
 
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
   log_warning "clean_checkout is enabled - this will destroy any local changes and reset the repository state"
+elif [[ "${CLEAN_CHECKOUT_OPTION}" = "only-upon-failure" ]]; then
+  log_info "clean_checkout is only-upon-failure - aggressive cleanup runs only if sparse-checkout or checkout fails"
 fi
+
+perform_aggressive_clean_checkout() {
+  log_info "Clean checkout enabled - resetting repository state"
+  # Remove lock files (prevents "another git process" errors)
+  find .git -name "*.lock" -delete 2>/dev/null || true
+  # Reset everything: index, working tree, and tracked files
+  git reset --hard HEAD 2>/dev/null || true
+  # Clean untracked and ignored files (after reset, including previously tracked files)
+  git clean -ffxdq 2>/dev/null || true
+}
+
+setup_sparse_checkout_and_checkout() {
+  log_info "Setting up sparse-checkout"
+  if ! git sparse-checkout set ${NO_CONE_PARAM:+--no-cone} "${CHECKOUT_PATHS[@]}"; then
+    log_error "Failed to configure sparse-checkout"
+    return 1
+  fi
+
+  if [[ "${USE_MERGE_REFSPEC}" = "true" ]]; then
+    log_info "Checking out merge ref for PR #${BUILDKITE_PULL_REQUEST}"
+    if ! git checkout FETCH_HEAD; then
+      log_error "Failed to checkout FETCH_HEAD"
+      return 1
+    fi
+  else
+    log_info "Checking out ${BUILDKITE_COMMIT}"
+    if [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
+      if ! git checkout FETCH_HEAD; then
+        log_error "Failed to checkout FETCH_HEAD"
+        return 1
+      fi
+    elif ! git checkout "${BUILDKITE_COMMIT}"; then
+      log_error "Failed to checkout ${BUILDKITE_COMMIT}"
+      return 1
+    fi
+  fi
+
+  return 0
+}
 
 if [[ -n "${BUILDKITE_REPO_SSH_HOST:-}" ]] && [[ "${SKIP_SSH_KEYSCAN_OPTION}" = "false" ]]; then
   log_info "Scanning SSH keys for ${BUILDKITE_REPO_SSH_HOST}"
@@ -79,15 +120,7 @@ fi
 
 # Enable clean checkout option to deal with corrupted repository states
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
-  log_info "Clean checkout enabled - resetting repository state"
-  # Remove lock files (prevents "another git process" errors)
-  find .git -name "*.lock" -delete 2>/dev/null || true
-  # Reset everything: index, working tree, and tracked files
-  # This handles corrupted index, uncommitted changes, and staged changes
-  git reset --hard HEAD 2>/dev/null || true
-  # Clean untracked and ignored files
-  # Must run AFTER reset to also clean files that were previously tracked
-  git clean -ffxdq 2>/dev/null || true
+  perform_aggressive_clean_checkout
 else
   git clean -ffxdq
 fi
@@ -182,26 +215,15 @@ if [[ "${USE_MERGE_REFSPEC}" != "true" ]]; then
 fi
 log_success "Fetch completed successfully"
 
-log_info "Setting up sparse-checkout"
-if ! git sparse-checkout set ${NO_CONE_PARAM:+--no-cone} "${CHECKOUT_PATHS[@]}"; then
-  log_error "Failed to configure sparse-checkout"
+if [[ "${CLEAN_CHECKOUT_OPTION}" = "only-upon-failure" ]]; then
+  if ! setup_sparse_checkout_and_checkout; then
+    log_warning "Sparse-checkout or checkout failed; performing aggressive clean checkout and retrying"
+    perform_aggressive_clean_checkout
+    if ! setup_sparse_checkout_and_checkout; then
+      exit 1
+    fi
+  fi
+elif ! setup_sparse_checkout_and_checkout; then
   exit 1
-fi
-
-if [[ "${USE_MERGE_REFSPEC}" = "true" ]]; then
-  log_info "Checking out merge ref for PR #${BUILDKITE_PULL_REQUEST}"
-else
-  log_info "Checking out ${BUILDKITE_COMMIT}"
-fi
-if [[ "${USE_MERGE_REFSPEC}" = "true" ]] || [[ ${BUILDKITE_COMMIT} = "HEAD" ]]; then
-  if ! git checkout FETCH_HEAD; then
-    log_error "Failed to checkout FETCH_HEAD"
-    exit 1
-  fi
-else
-  if ! git checkout "${BUILDKITE_COMMIT}"; then
-    log_error "Failed to checkout ${BUILDKITE_COMMIT}"
-    exit 1
-  fi
 fi
 log_success "Sparse checkout completed successfully"
