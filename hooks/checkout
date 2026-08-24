@@ -173,9 +173,13 @@ if [[ "${USE_MERGE_REFSPEC}" != "true" ]]; then
   fi
 
   log_info "Fetching ${BUILDKITE_COMMIT} from origin"
-  if ! git fetch "${FETCH_FLAGS[@]}"; then
+  if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" 2>&1); then
+    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}"
+  else
+    fetch_status=$?
+    [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
     log_error "Failed to fetch ${BUILDKITE_COMMIT} from origin"
-    exit 1
+    exit "${fetch_status}"
   fi
 fi
 log_success "Fetch completed successfully"
