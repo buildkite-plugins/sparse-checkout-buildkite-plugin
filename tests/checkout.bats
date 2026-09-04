@@ -257,6 +257,22 @@ setup() {
   unstub git
 }
 
+@test "Propagates git's real exit status when fetching the commit fails" {
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'fatal: shallow file has changed since we read it' >&2; exit 128"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  assert_output --partial 'fatal: shallow file has changed since we read it'
+  assert_output --partial 'Failed to fetch dummy-commit-hash from origin'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
 @test "Clean checkout handles repository without HEAD gracefully" {
   export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_CLEAN_CHECKOUT="true"
 
