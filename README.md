@@ -95,7 +95,7 @@ steps:
   - label: "Pipeline upload"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.9.0:
+      - sparse-checkout#v1.10.0:
           paths:
             - .buildkite
 ```
@@ -109,7 +109,7 @@ steps:
   - label: "Build with full history"
     command: "make changelog"
     plugins:
-      - sparse-checkout#v1.9.0:
+      - sparse-checkout#v1.10.0:
           paths:
             - src
             - .buildkite
@@ -126,7 +126,7 @@ steps:
   - label: "Pipeline upload with clean checkout"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.9.0:
+      - sparse-checkout#v1.10.0:
           paths:
             - .buildkite
           clean_checkout: true
@@ -139,7 +139,7 @@ steps:
   - label: "Pipeline upload"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.9.0:
+      - sparse-checkout#v1.10.0:
           paths:
             - .buildkite
           clean_checkout: only-upon-failure
@@ -154,7 +154,7 @@ steps:
   - label: "Sparse build"
     command: "make build"
     plugins:
-      - sparse-checkout#v1.9.0:
+      - sparse-checkout#v1.10.0:
           paths:
             - src
           cleanup_sparse_state: true
