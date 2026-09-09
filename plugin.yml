@@ -14,7 +14,7 @@ configuration:
       type: boolean
       default: false
     clean_checkout:
-      type: boolean
+      type: [boolean, string]
       default: false
     cleanup_sparse_state:
       type: boolean

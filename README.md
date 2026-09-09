@@ -24,19 +24,23 @@ Whether to pass `--no-cone` to `git sparse-checkout` so that the paths are consi
 
 Whether to skip ssh-keyscan step. This will skip adding each ssh public key into the known-hosts file. Only use if ssh keys are already setup.
 
-#### `clean_checkout` ('true' or 'false')
+#### `clean_checkout` (`true`, `false`, or `only-upon-failure`)
 
-Whether to perform aggressive repository cleanup before checkout. This option handles scenarios where interrupted or cancelled jobs leave the git repository in a corrupted state that would prevent checkout. When enabled, it removes git lock files, resets the repository with `git reset --hard HEAD`, and cleans all untracked files with `git clean -ffxdq`.
+Controls how the checkout hook cleans the repository before sparse-checkout.
 
-**What it fixes:**
+- **`false` (default):** Runs `git clean -ffxdq` before fetch. If sparse-checkout or `git checkout` fails, the job fails.
+- **`true`:** Runs aggressive cleanup before fetch (remove lock files, `git reset --hard HEAD`, `git clean -ffxdq`). Use when interrupted jobs often leave a corrupted tree. Note that for some workloads, this aggressive cleanup could negate the expected performance benefits of using a sparse checkout.
+- **`only-upon-failure`:** Runs `git clean -ffxdq` before fetch (same as `false`). If configuring sparse-checkout or checking out the commit fails (for example, local changes that would be overwritten), the hook runs the same aggressive cleanup as `true` once and retries sparse-checkout and checkout.
+
+**What aggressive cleanup fixes:**
 - Stale git lock files (from interrupted operations)
 - Corrupted git index
 - Uncommitted changes in tracked files
 - Untracked and ignored files
 
-**⚠️ Warning:** This option will destroy ALL local changes and remove ALL untracked files. The `git clean -ffxdq` command with the `-x` flag will also remove ignored files (such as credentials, local configuration, or cache files). Only use this option when you're certain no important local data needs to be preserved.
+**⚠️ Warning:** `true` and the retry path of `only-upon-failure` destroy ALL local changes and remove ALL untracked files. `git clean -ffxdq` with `-x` also removes ignored files (such as credentials, local configuration, or cache files). Only use aggressive cleanup when you're certain no important local data needs to be preserved.
 
-Use this option for pipeline upload jobs that don't need to preserve local changes.
+Use `true` for pipeline upload jobs that don't need to preserve local changes. Use `only-upon-failure` when you want a fast path on healthy agents but automatic recovery from dirty checkouts left by cancelled jobs.
 
 #### `cleanup_sparse_state` ('true' or 'false')
 
@@ -91,7 +95,7 @@ steps:
   - label: "Pipeline upload"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.8.0:
+      - sparse-checkout#v1.9.0:
           paths:
             - .buildkite
 ```
@@ -105,7 +109,7 @@ steps:
   - label: "Build with full history"
     command: "make changelog"
     plugins:
-      - sparse-checkout#v1.8.0:
+      - sparse-checkout#v1.9.0:
           paths:
             - src
             - .buildkite
@@ -122,10 +126,23 @@ steps:
   - label: "Pipeline upload with clean checkout"
     command: "buildkite-agent pipeline upload"
     plugins:
-      - sparse-checkout#v1.8.0:
+      - sparse-checkout#v1.9.0:
           paths:
             - .buildkite
           clean_checkout: true
+```
+
+To avoid aggressive cleanup on every build but recover when a cancelled job leaves local changes that block checkout:
+
+```yaml
+steps:
+  - label: "Pipeline upload"
+    command: "buildkite-agent pipeline upload"
+    plugins:
+      - sparse-checkout#v1.9.0:
+          paths:
+            - .buildkite
+          clean_checkout: only-upon-failure
 ```
 
 ### Cleaning up sparse-checkout state when the default path isolation is overridden
@@ -137,7 +154,7 @@ steps:
   - label: "Sparse build"
     command: "make build"
     plugins:
-      - sparse-checkout#v1.8.0:
+      - sparse-checkout#v1.9.0:
           paths:
             - src
           cleanup_sparse_state: true
