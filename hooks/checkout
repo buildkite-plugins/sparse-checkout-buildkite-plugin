@@ -153,6 +153,8 @@ is_missing_merge_ref_error() {
     || [[ "${FETCH_OUTPUT}" == *"not our ref ${merge_ref}"* ]]
 }
 
+MERGE_REF_WAIT=2
+
 # Fetch merge ref once, printing git's output
 fetch_merge_ref() {
   if FETCH_OUTPUT=$(git fetch "${FETCH_FLAGS[@]}" "${MERGE_REF}" 2>&1); then
@@ -161,6 +163,11 @@ fetch_merge_ref() {
   else
     local status=$?
     [[ -n "${FETCH_OUTPUT}" ]] && printf '%s\n' "${FETCH_OUTPUT}" >&2
+    # GitHub may still be computing the merge ref: wait 2s, then 5s, instead of the doubling backoff
+    if is_missing_merge_ref_error; then
+      RETRY_AFTER="${MERGE_REF_WAIT}"
+      MERGE_REF_WAIT=5
+    fi
     return "${status}"
   fi
 }

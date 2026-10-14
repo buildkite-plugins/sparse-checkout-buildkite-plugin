@@ -286,8 +286,8 @@ setup() {
 
   stub ssh-keyscan "* : echo 'keyscan'"
   stub sleep \
-    "* : true" \
-    "* : true"
+    "2 : true" \
+    "5 : true"
   stub git \
     "clean * : echo 'git clean'" \
     "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
@@ -299,8 +299,8 @@ setup() {
   run "$PWD"/hooks/checkout
 
   assert_success
-  assert_output --partial 'Attempt 1/3 failed with status 1; retrying in 1.'
-  assert_output --partial 'Attempt 2/3 failed with status 1; retrying in 2.'
+  assert_output --partial 'Attempt 1/3 failed with status 1; retrying in 2s'
+  assert_output --partial 'Attempt 2/3 failed with status 1; retrying in 5s'
   assert_output --partial 'git fetch merge refspec'
   assert_output --partial 'checkout fetch_head'
 
@@ -513,8 +513,8 @@ setup() {
 
   stub ssh-keyscan "* : echo 'keyscan'"
   stub sleep \
-    "* : true" \
-    "* : true"
+    "2 : true" \
+    "5 : true"
   stub git \
     "clean * : echo 'git clean'" \
     "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
@@ -527,6 +527,61 @@ setup() {
   run "$PWD"/hooks/checkout
 
   assert_success
+  assert_output --partial 'falling back to abc123'
+  assert_output --partial 'checkout commit'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Fails when the last merge ref error is not a missing ref" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "2 : true" \
+    "5 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  assert_output --partial 'Failed to fetch merge ref for PR #123 from origin'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Falls back to the commit when the last merge ref error is a missing ref" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="abc123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "* : true" \
+    "2 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin abc123 : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout abc123 : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Attempt 1/3 failed with status 128; retrying in 1.'
+  assert_output --partial 'Attempt 2/3 failed with status 1; retrying in 2s'
   assert_output --partial 'falling back to abc123'
   assert_output --partial 'checkout commit'
 
