@@ -640,6 +640,42 @@ setup() {
   unstub git
 }
 
+@test "Caps merge_ref_retry_attempts at 10" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="abc123"
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_MERGE_REF_RETRY_ATTEMPTS="15"
+
+  local fetches=() sleeps=("2 : true")
+  for _ in {1..10}; do
+    fetches+=("fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1")
+  done
+  for _ in {1..8}; do
+    sleeps+=("5 : true")
+  done
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "${sleeps[@]}"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "${fetches[@]}" \
+    "fetch --depth 1 origin abc123 : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout abc123 : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Capping 15 attempts at the maximum of 10'
+  assert_output --partial 'Attempt 9/10 failed with status 1; retrying in 5s'
+  assert_output --partial 'falling back to abc123'
+  assert_output --partial 'checkout commit'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
 @test "Rejects fetch_attempts that is not a whole number of at least 1" {
   for value in six 6s 1.5 0 -1 08; do
     export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_ATTEMPTS="${value}"

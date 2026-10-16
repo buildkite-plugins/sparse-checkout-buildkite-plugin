@@ -95,7 +95,7 @@ Convert the shallow clone into a full-depth clone by running `git fetch --unshal
 ### BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC
 When `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC=true`, the plugin fetches the
 GitHub merge ref and retries any failure up to `merge_ref_retry_attempts` times
-(default `3`), waiting 1, 2, 4, ... seconds between attempts. If the last attempt
+(default `3`). See `merge_ref_retry_attempts` above for the waits. If the last attempt
 fails because the merge ref is still missing, it falls back to the normal
 non-merge-ref target (`BUILDKITE_BRANCH` when `BUILDKITE_COMMIT=HEAD`, otherwise
 `BUILDKITE_COMMIT`). Any other error fails the job.
