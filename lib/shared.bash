@@ -124,6 +124,39 @@ retry() {
   done
 }
 
+# Matches `maximum` in plugin.yml, enforced here too in case the schema is not validated.
+# 10 attempts wait about 2^9 - 1 = 511s in total.
+RETRY_MAX_ATTEMPTS=10
+
+# Retry a command with the agent's checkout backoff (buildkite/agent#3822):
+# 1s, 2s, 4s, ... plus up to 1s of jitter between attempts
+# Usage: retry_with_backoff 6 git fetch origin main
+# Arguments:
+#   $1: total number of attempts, capped at RETRY_MAX_ATTEMPTS
+#   $@: command to execute; it may set RETRY_AFTER to override the next wait, in seconds
+retry_with_backoff() {
+  local attempts=$1
+  shift
+  local attempt status delay RETRY_AFTER
+
+  if (( attempts > RETRY_MAX_ATTEMPTS )); then
+    log_warning "Capping ${attempts} attempts at the maximum of ${RETRY_MAX_ATTEMPTS}"
+    attempts=${RETRY_MAX_ATTEMPTS}
+  fi
+
+  for ((attempt = 1; ; attempt++)); do
+    status=0
+    RETRY_AFTER=""
+    "$@" || status=$?
+    if (( status == 0 || attempt >= attempts )); then
+      return "${status}"
+    fi
+    delay="${RETRY_AFTER:-$((2 ** (attempt - 1))).$((RANDOM % 10))}"
+    log_warning "Attempt ${attempt}/${attempts} failed with status ${status}; retrying in ${delay}s"
+    sleep "${delay}"
+  done
+}
+
 # ============================================================================
 # Array utilities
 # ============================================================================
