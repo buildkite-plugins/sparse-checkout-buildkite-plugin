@@ -64,6 +64,10 @@ Enable verbose logging with bash execution tracing (`set -x`). This shows each c
 
 How many times to try fetching the GitHub pull-request merge ref (`refs/pull/<n>/merge`) when using merge-ref checkout (see `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC` below). Defaults to `3`. Between attempts the hook waits 2 seconds after the first failure and 5 seconds after later failures. Set to `0` to skip merge-ref fetch attempts and fall back immediately.
 
+#### `fetch_retry_attempts` (integer)
+
+How many times to try the regular `git fetch` of `BUILDKITE_COMMIT` (or `BUILDKITE_BRANCH` when `BUILDKITE_COMMIT=HEAD`) before failing the job. Defaults to `3`. Any fetch failure is retried, since transient errors from the git host (for example a one-off `Permission denied (publickey)`) succeed on a later attempt. Between attempts the hook waits 2 seconds after the first failure and 5 seconds after later failures. Accepts `0` to `999`; set to `1` (or `0`) to disable retries. This does not apply to the merge-ref fetch, which uses `merge_ref_retry_attempts`.
+
 #### `post_checkout` (object)
 
 Options that run after the sparse checkout completes, in the `post-checkout` hook.
@@ -83,7 +87,7 @@ is still unavailable, it falls back to the normal non-merge-ref target
 (`BUILDKITE_BRANCH` when `BUILDKITE_COMMIT=HEAD`, otherwise `BUILDKITE_COMMIT`).
 
 This retry logic only applies to the specific merge-ref-not-ready error. Other
-`git fetch` failures still fail immediately.
+merge-ref fetch failures still fail immediately.
 
 
 ## Example

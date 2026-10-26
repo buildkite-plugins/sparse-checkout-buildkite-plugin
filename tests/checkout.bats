@@ -352,6 +352,8 @@ setup() {
 }
 
 @test "Propagates git's real exit status when fetching the commit fails" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_RETRY_ATTEMPTS="1"
+
   stub ssh-keyscan "* : echo 'keyscan'"
   stub git \
     "clean * : echo 'git clean'" \
@@ -362,9 +364,141 @@ setup() {
   assert_failure 128
   assert_output --partial 'fatal: shallow file has changed since we read it'
   assert_output --partial 'Failed to fetch dummy-commit-hash from origin'
+  refute_output --partial 'retrying'
 
   unstub ssh-keyscan
   unstub git
+}
+
+@test "Retries a failed commit fetch before succeeding" {
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "2 : true" \
+    "5 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout dummy-commit-hash : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'failed with status 128 (attempt 1/3); retrying in 2s'
+  assert_output --partial 'failed with status 128 (attempt 2/3); retrying in 5s'
+  assert_output --partial 'git fetch commit'
+  assert_output --partial 'checkout commit'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Retries the branch fetch when BUILDKITE_COMMIT is HEAD" {
+  export BUILDKITE_COMMIT="HEAD"
+  export BUILDKITE_BRANCH="main"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "2 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin main : exit 128" \
+    "fetch --depth 1 origin main : echo 'git fetch branch'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout FETCH_HEAD : echo 'checkout fetch_head'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'retrying in 2s'
+  assert_output --partial 'git fetch branch'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Fails with git's exit status once fetch retries are exhausted" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_RETRY_ATTEMPTS="2"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "2 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 1"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 1
+  assert_output --partial '(attempt 1/2); retrying in 2s'
+  assert_output --partial 'Failed to fetch dummy-commit-hash from origin'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "fetch_retry_attempts of 0 fetches once without retrying" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_RETRY_ATTEMPTS="0"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  refute_output --partial 'retrying'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "fetch_retry_attempts with a leading zero is read as decimal" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_RETRY_ATTEMPTS="08"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "2 : true" \
+    "5 : true" \
+    "5 : true" \
+    "5 : true" \
+    "5 : true" \
+    "5 : true" \
+    "5 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : exit 128"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  assert_output --partial '(attempt 7/8); retrying in 5s'
+  refute_output --partial 'attempt 8/8'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Rejects an invalid fetch_retry_attempts" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_RETRY_ATTEMPTS="three"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 1
+  assert_output --partial "fetch_retry_attempts must be an integer between 0 and 999, got 'three'"
 }
 
 @test "Clean checkout handles repository without HEAD gracefully" {
