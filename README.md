@@ -1,5 +1,12 @@
 # Sparse Checkout Buildkite Plugin [![Build status](https://badge.buildkite.com/f846f6eca370c461286ba3de8e7def04b16e00cd1b85b58b23.svg)](https://buildkite.com/buildkite/plugins-sparse-checkout)
 
+> [!NOTE]
+> **Sparse checkout is now supported natively.** Buildkite agent v3.136.0 and later support sparse checkout through the [`checkout.sparse`](https://buildkite.com/docs/pipelines/configure/git-checkout#sparse-checkout) attribute, and the native checkout also retries failed fetches. For most pipelines we recommend it over this plugin.
+>
+> For non-cone patterns (the equivalent of this plugin's `no_cone`), also set `BUILDKITE_GIT_SPARSE_CHECKOUT_MODE: no-cone` in the step's `env` (requires Git 2.35 or later). See [`--git-sparse-checkout-mode`](https://buildkite.com/docs/agent/cli/reference/start#git-sparse-checkout-mode).
+>
+> Keep using this plugin if you need `clean_checkout`, `cleanup_sparse_state` or `post_checkout.unshallow`, or if your agents are older than v3.136.0. See [Migrating from the sparse checkout plugin](https://buildkite.com/docs/pipelines/configure/git-checkout#migrating-from-the-sparse-checkout-plugin).
+
 A [Buildkite plugin](https://buildkite.com/docs/agent/v3/plugins) for creating a sparse checkout of a repository.
 
 This is useful for pipeline upload steps that dont need to access files outside the .buildkite directory. If your repository is large, this plugin will speed up your pipelines by only pulling the files relevant to the step.
