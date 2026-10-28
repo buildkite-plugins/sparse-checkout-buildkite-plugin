@@ -31,6 +31,13 @@ SKIP_SSH_KEYSCAN_OPTION="$(plugin_read_config SKIP_SSH_KEYSCAN "false")"
 CLEAN_CHECKOUT_OPTION="$(plugin_read_config CLEAN_CHECKOUT "false")"
 
 MERGE_REF_RETRY_ATTEMPTS="$(plugin_read_config MERGE_REF_RETRY_ATTEMPTS "3")"
+FETCH_RETRY_ATTEMPTS="$(plugin_read_config FETCH_RETRY_ATTEMPTS "3")"
+if ! [[ "${FETCH_RETRY_ATTEMPTS}" =~ ^[0-9]{1,3}$ ]]; then
+  log_error "fetch_retry_attempts must be an integer between 0 and 999, got '${FETCH_RETRY_ATTEMPTS}'"
+  exit 1
+fi
+# Force base 10 so values like "08" aren't parsed as octal
+FETCH_RETRY_ATTEMPTS=$((10#${FETCH_RETRY_ATTEMPTS}))
 
 if [[ "${CLEAN_CHECKOUT_OPTION}" = "true" ]]; then
   log_warning "clean_checkout is enabled - this will destroy any local changes and reset the repository state"
@@ -206,8 +213,19 @@ if [[ "${USE_MERGE_REFSPEC}" != "true" ]]; then
   fi
 
   log_info "Fetching ${BUILDKITE_COMMIT} from origin"
-  fetch_status=0
-  git fetch "${FETCH_FLAGS[@]}" || fetch_status=$?
+  # Retry transient failures (e.g. GitHub briefly rejecting the SSH key) with the
+  # same 2s-then-5s backoff as the merge-ref retries.
+  for ((attempt = 1; ; attempt++)); do
+    fetch_status=0
+    git fetch "${FETCH_FLAGS[@]}" || fetch_status=$?
+    if [[ "${fetch_status}" -eq 0 ]] || [[ "${attempt}" -ge "${FETCH_RETRY_ATTEMPTS}" ]]; then
+      break
+    fi
+    delay=5
+    [[ "${attempt}" -eq 1 ]] && delay=2
+    log_warning "Fetch of ${BUILDKITE_COMMIT} failed with status ${fetch_status} (attempt ${attempt}/${FETCH_RETRY_ATTEMPTS}); retrying in ${delay}s"
+    sleep "${delay}"
+  done
   if [[ "${fetch_status}" -ne 0 ]]; then
     log_error "Failed to fetch ${BUILDKITE_COMMIT} from origin"
     exit "${fetch_status}"
