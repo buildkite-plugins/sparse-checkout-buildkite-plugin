@@ -299,8 +299,8 @@ setup() {
   run "$PWD"/hooks/checkout
 
   assert_success
-  assert_output --partial 'retrying in 2s'
-  assert_output --partial 'retrying in 5s'
+  assert_output --partial 'Attempt 1/3 failed with status 1; retrying in 2s'
+  assert_output --partial 'Attempt 2/3 failed with status 1; retrying in 5s'
   assert_output --partial 'git fetch merge refspec'
   assert_output --partial 'checkout fetch_head'
 
@@ -365,6 +365,337 @@ setup() {
 
   unstub ssh-keyscan
   unstub git
+}
+
+@test "Retries a failed commit fetch before succeeding" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_ATTEMPTS="6"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "* : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout dummy-commit-hash : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Attempt 1/6 failed with status 128; retrying in 1.'
+  assert_output --partial 'git fetch commit'
+  assert_output --partial 'checkout commit'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Fails with git's exit status after fetch_attempts commit fetches" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_ATTEMPTS="3"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "* : true" \
+    "* : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  assert_output --partial 'Attempt 2/3 failed with status 128; retrying in 2.'
+  assert_output --partial 'Failed to fetch dummy-commit-hash from origin'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Ignores BUILDKITE_CHECKOUT_ATTEMPTS and fetches once by default" {
+  export BUILDKITE_CHECKOUT_ATTEMPTS="6"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  refute_output --partial 'retrying in'
+  assert_output --partial 'Failed to fetch dummy-commit-hash from origin'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Retries a failed clone" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_ATTEMPTS="2"
+  local hook="$PWD/hooks/checkout"
+  cd "$BATS_TEST_TMPDIR"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "* : true"
+  stub git \
+    "clone --depth 1 --filter=blob:none --no-checkout -v git@github.com:example/repo.git . : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "clone --depth 1 --filter=blob:none --no-checkout -v git@github.com:example/repo.git . : echo 'git clone'" \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin dummy-commit-hash : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout dummy-commit-hash : echo 'checkout commit'"
+
+  run "$hook"
+
+  assert_success
+  assert_output --partial 'Attempt 1/2 failed with status 128; retrying in 1.'
+  assert_output --partial 'Repository cloned successfully'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Retries a failed merge ref fetch" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "* : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git fetch merge refspec'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout FETCH_HEAD : echo 'checkout fetch_head'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Attempt 1/3 failed with status 128; retrying in 1.'
+  assert_output --partial 'checkout fetch_head'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Fails with git's exit status after merge_ref_retry_attempts merge ref fetches" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_MERGE_REF_RETRY_ATTEMPTS="2"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "* : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  assert_output --partial 'Attempt 1/2 failed with status 128'
+  assert_output --partial 'Failed to fetch merge ref for PR #123 from origin'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Falls back to the commit when the merge ref is still missing" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="abc123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "2 : true" \
+    "5 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin abc123 : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout abc123 : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'falling back to abc123'
+  assert_output --partial 'checkout commit'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Fails when the last merge ref error is not a missing ref" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "2 : true" \
+    "5 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  assert_output --partial 'Failed to fetch merge ref for PR #123 from origin'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Falls back to the commit when the last merge ref error is a missing ref" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="abc123"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep \
+    "* : true" \
+    "2 : true"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1" \
+    "fetch --depth 1 origin abc123 : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout abc123 : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Attempt 1/3 failed with status 128; retrying in 1.'
+  assert_output --partial 'Attempt 2/3 failed with status 1; retrying in 2s'
+  assert_output --partial 'falling back to abc123'
+  assert_output --partial 'checkout commit'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "merge_ref_retry_attempts 0 skips the merge ref" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="abc123"
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_MERGE_REF_RETRY_ATTEMPTS="0"
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "fetch --depth 1 origin abc123 : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout abc123 : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'falling back to abc123'
+  assert_output --partial 'checkout commit'
+
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Caps fetch_attempts at 10" {
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_ATTEMPTS="15"
+
+  local fetches=() sleeps=()
+  for _ in {1..10}; do
+    fetches+=("fetch --depth 1 origin dummy-commit-hash : echo 'git@github.com: Permission denied (publickey).' >&2; exit 128")
+  done
+  for _ in {1..9}; do
+    sleeps+=("* : true")
+  done
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "${sleeps[@]}"
+  stub git "clean * : echo 'git clean'" "${fetches[@]}"
+
+  run "$PWD"/hooks/checkout
+
+  assert_failure 128
+  assert_output --partial 'Capping 15 attempts at the maximum of 10'
+  assert_output --partial 'Attempt 9/10 failed with status 128; retrying in 256.'
+  assert_output --partial 'Failed to fetch dummy-commit-hash from origin'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Caps merge_ref_retry_attempts at 10" {
+  export BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC="true"
+  export BUILDKITE_PULL_REQUEST="123"
+  export BUILDKITE_COMMIT="abc123"
+  export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_MERGE_REF_RETRY_ATTEMPTS="15"
+
+  local fetches=() sleeps=("2 : true")
+  for _ in {1..10}; do
+    fetches+=("fetch --depth 1 origin refs/pull/123/merge : echo \"fatal: couldn't find remote ref refs/pull/123/merge\" >&2; exit 1")
+  done
+  for _ in {1..8}; do
+    sleeps+=("5 : true")
+  done
+
+  stub ssh-keyscan "* : echo 'keyscan'"
+  stub sleep "${sleeps[@]}"
+  stub git \
+    "clean * : echo 'git clean'" \
+    "${fetches[@]}" \
+    "fetch --depth 1 origin abc123 : echo 'git fetch commit'" \
+    "sparse-checkout set * * : echo 'git sparse-checkout'" \
+    "checkout abc123 : echo 'checkout commit'"
+
+  run "$PWD"/hooks/checkout
+
+  assert_success
+  assert_output --partial 'Capping 15 attempts at the maximum of 10'
+  assert_output --partial 'Attempt 9/10 failed with status 1; retrying in 5s'
+  assert_output --partial 'falling back to abc123'
+  assert_output --partial 'checkout commit'
+
+  unstub sleep
+  unstub ssh-keyscan
+  unstub git
+}
+
+@test "Rejects fetch_attempts that is not a whole number of at least 1" {
+  for value in six 6s 1.5 0 -1 08; do
+    export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_FETCH_ATTEMPTS="${value}"
+
+    run "$PWD"/hooks/checkout
+
+    assert_failure 1
+    assert_output --partial "fetch_attempts must be a whole number of at least 1, got '${value}'"
+  done
+}
+
+@test "Rejects merge_ref_retry_attempts that is not a whole number of at least 0" {
+  for value in three 3s 1.5 -1 08; do
+    export BUILDKITE_PLUGIN_SPARSE_CHECKOUT_MERGE_REF_RETRY_ATTEMPTS="${value}"
+
+    run "$PWD"/hooks/checkout
+
+    assert_failure 1
+    assert_output --partial "merge_ref_retry_attempts must be a whole number of at least 0, got '${value}'"
+  done
 }
 
 @test "Clean checkout handles repository without HEAD gracefully" {
