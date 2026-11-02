@@ -69,7 +69,25 @@ Enable verbose logging with bash execution tracing (`set -x`). This shows each c
 
 #### `merge_ref_retry_attempts` (integer)
 
-How many times to try fetching the GitHub pull-request merge ref (`refs/pull/<n>/merge`) when using merge-ref checkout (see `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC` below). Defaults to `3`. Between attempts the hook waits 2 seconds after the first failure and 5 seconds after later failures. Set to `0` to skip merge-ref fetch attempts and fall back immediately.
+How many times to try fetching the GitHub pull-request merge ref (`refs/pull/<n>/merge`) when using merge-ref checkout (see `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC` below). Defaults to `3`. Set to `0` to skip merge-ref fetch attempts and fall back immediately. Must be a whole number of at least `0`. Values above `10` are capped at `10` with a warning, and anything else fails the job.
+
+GitHub computes the merge ref some time after a push, and never creates one for a pull request with merge conflicts. While the merge ref is missing, the plugin waits 2 seconds before the second attempt and 5 seconds before each later one, so the default waits about 7 seconds before it falls back. Any other error, such as `Permission denied (publickey)`, is retried with the same backoff as `fetch_attempts`. If the last attempt fails with such an error, the job fails instead of falling back.
+
+#### `fetch_attempts` (integer)
+
+How many times to try the initial `git clone` and the commit (or branch, when `BUILDKITE_COMMIT=HEAD`) fetch before failing the job. The merge-ref fetch uses `merge_ref_retry_attempts` instead. Defaults to `1`, which fails on the first error. Set it to `6` to match the agent's built-in checkout ([buildkite/agent#3822](https://github.com/buildkite/agent/pull/3822)), which covers short network or GitHub outages such as `Permission denied (publickey)`. Any failure is retried. Must be a whole number of at least `1`. Values above `10` are capped at `10` with a warning, and anything else fails the job.
+
+The wait doubles after each failed attempt, starting at 1 second, plus up to 1 second of jitter. The total wait before the job fails is about 2^(attempts - 1) - 1 seconds, so it grows fast:
+
+| Attempts | Waits between attempts | Total wait |
+|---|---|---|
+| 2 | 1s | about 1s |
+| 3 | 1s, 2s | about 3s |
+| 6 | 1s, 2s, 4s, 8s, 16s | about 31s |
+| 8 | 1s … 64s | about 2 minutes |
+| 10 | 1s … 256s | about 8.5 minutes |
+
+`merge_ref_retry_attempts` uses these waits for errors other than a missing merge ref, and the same maximum.
 
 #### `post_checkout` (object)
 
@@ -82,15 +100,12 @@ Convert the shallow clone into a full-depth clone by running `git fetch --unshal
 ## Environment Variables
 
 ### BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC
-When `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC=true`, the plugin will retry the
-GitHub merge ref checkout if it sees the known "missing merge ref" failure, up to
-`merge_ref_retry_attempts` times (default `3`). Between attempts it waits 2 seconds
-after the first failure and 5 seconds after subsequent failures. If the merge ref
-is still unavailable, it falls back to the normal non-merge-ref target
-(`BUILDKITE_BRANCH` when `BUILDKITE_COMMIT=HEAD`, otherwise `BUILDKITE_COMMIT`).
-
-This retry logic only applies to the specific merge-ref-not-ready error. Other
-`git fetch` failures still fail immediately.
+When `BUILDKITE_PULL_REQUEST_USING_MERGE_REFSPEC=true`, the plugin fetches the
+GitHub merge ref and retries any failure up to `merge_ref_retry_attempts` times
+(default `3`). See `merge_ref_retry_attempts` above for the waits. If the last attempt
+fails because the merge ref is still missing, it falls back to the normal
+non-merge-ref target (`BUILDKITE_BRANCH` when `BUILDKITE_COMMIT=HEAD`, otherwise
+`BUILDKITE_COMMIT`). Any other error fails the job.
 
 
 ## Example
